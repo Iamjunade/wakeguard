@@ -16,8 +16,8 @@ const CONFIG = {
     EAR_THRESHOLD: 0.22,
 
     // Consecutive frames with closed eyes to trigger alarm
-    // At ~15-20 FPS, 30 frames ≈ 2 seconds
-    CONSEC_FRAMES_THRESHOLD: 30,
+    // At ~10-15 FPS (browser), 20 frames ≈ 2 seconds
+    CONSEC_FRAMES_THRESHOLD: 20,
 
     // SMS Configuration
     HTTPSMS_API_KEY: "uk_o1t_xX-X-lVBbWEFAzNslxgmY1byQf2wmNc1DNTw0FAjmG9V9Ee4fi7Ed9IY66ob",
