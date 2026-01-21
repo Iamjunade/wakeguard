@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WakeGuard - Driver Drowsiness Detection</title>
+    <meta name="description" content="Real-time drowsiness detection system using AI and webcam to keep drivers safe.">
+    <link rel="stylesheet" href="style.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+</head>
+
+<body>
+    <div class="container">
+        <!-- Header -->
+        <header class="header">
+            <div class="logo">
+                <span class="logo-icon">👁️</span>
+                <h1>WakeGuard</h1>
+            </div>
+            <div class="status-badge" id="statusBadge">
+                <span class="status-dot"></span>
+                <span class="status-text">Initializing...</span>
+            </div>
+        </header>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <!-- Video Container -->
+            <div class="video-container">
+                <video id="webcam" autoplay playsinline></video>
+                <canvas id="canvas"></canvas>
+
+                <!-- Overlay Elements -->
+                <div class="metrics-overlay">
+                    <div class="metric">
+                        <span class="metric-label">EAR</span>
+                        <span class="metric-value" id="earValue">0.000</span>
+                    </div>
+                    <div class="metric">
+                        <span class="metric-label">FPS</span>
+                        <span class="metric-value" id="fpsValue">0</span>
+                    </div>
+                </div>
+
+                <!-- Alert Overlay -->
+                <div class="alert-overlay" id="alertOverlay">
+                    <div class="alert-content">
+                        <div class="alert-icon">⚠️</div>
+                        <h2>DROWSINESS ALERT!</h2>
+                        <p>WAKE UP!</p>
+                    </div>
+                </div>
+
+                <!-- Credits Bar -->
+                <div class="credits-bar">
+                    <div class="credit-item">
+                        <span class="credit-label">Team:</span>
+                        <span class="credit-value">META MINDS</span>
+                    </div>
+                    <div class="credit-item">
+                        <span class="credit-label">Team Lead:</span>
+                        <span class="credit-value">Mohd Junaid Pasha</span>
+                    </div>
+                    <div class="credit-item">
+                        <span class="credit-label">Members:</span>
+                        <span class="credit-value">Mohd Saif Patel • Farjana Shaikh</span>
+                    </div>
+                    <div class="credit-item">
+                        <span class="credit-label">Guidance:</span>
+                        <span class="credit-value">Dr. K Sampath</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Control Panel -->
+            <div class="control-panel">
+                <button class="btn btn-primary" id="startBtn">
+                    <span class="btn-icon">▶️</span>
+                    Start Detection
+                </button>
+                <button class="btn btn-secondary" id="stopBtn" disabled>
+                    <span class="btn-icon">⏹️</span>
+                    Stop
+                </button>
+            </div>
+
+            <!-- Info Cards -->
+            <div class="info-cards">
+                <div class="info-card">
+                    <div class="card-icon">👁️</div>
+                    <div class="card-content">
+                        <h3>Eye Tracking</h3>
+                        <p>Real-time eye aspect ratio monitoring</p>
+                    </div>
+                </div>
+                <div class="info-card">
+                    <div class="card-icon">🔔</div>
+                    <div class="card-content">
+                        <h3>Instant Alerts</h3>
+                        <p>Audio & visual warnings when drowsy</p>
+                    </div>
+                </div>
+                <div class="info-card">
+                    <div class="card-icon">📱</div>
+                    <div class="card-content">
+                        <h3>SMS Notification</h3>
+                        <p>Emergency contacts alerted automatically</p>
+                    </div>
+                </div>
+            </div>
+        </main>
+
+        <!-- Footer -->
+        <footer class="footer">
+            <p>© 2026 WakeGuard | Team META MINDS</p>
+            <p>Team Lead: Mohd Junaid Pasha | Members: Mohd Saif Patel • Farjana Shaikh</p>
+            <p>Under guidance of Dr. K Sampath</p>
+        </footer>
+    </div>
+
+    <!-- Hidden Settings Modal (Type "wakeguard777" to access) -->
+    <div class="settings-modal" id="settingsModal">
+        <div class="settings-content">
+            <div class="settings-header">
+                <h2>🔒 Private Settings</h2>
+                <button class="settings-close" id="settingsClose">✕</button>
+            </div>
+            <div class="settings-body">
+                <div class="settings-group">
+                    <label for="smsRecipient">SMS Alert Recipient Number</label>
+                    <input type="tel" id="smsRecipient" placeholder="+91XXXXXXXXXX" />
+                    <small>Enter the phone number to receive drowsiness alerts</small>
+                </div>
+                <div class="settings-actions">
+                    <button class="btn btn-primary" id="saveSettings">Save Settings</button>
+                </div>
+                <div class="settings-status" id="settingsStatus"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Audio Element for Alarm -->
+    <audio id="alarmSound" loop>
+        <source src="../alarm.wav" type="audio/wav">
+    </audio>
+
+    <!-- MediaPipe and Scripts -->
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/face_mesh.js" crossorigin="anonymous"></script>
+    <script src="app.js"></script>
+</body>
+
+</html>
