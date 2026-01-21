@@ -54,6 +54,7 @@ const canvasCtx = canvasElement.getContext('2d');
 const earValueElement = document.getElementById('earValue');
 const fpsValueElement = document.getElementById('fpsValue');
 const alertOverlay = document.getElementById('alertOverlay');
+const loadingOverlay = document.getElementById('loadingOverlay');
 const statusBadge = document.getElementById('statusBadge');
 const statusDot = statusBadge.querySelector('.status-dot');
 const statusText = statusBadge.querySelector('.status-text');
@@ -366,6 +367,9 @@ async function initializeFaceMesh() {
 async function startDetection() {
     updateStatus('Starting camera...', 'normal');
 
+    // Show loading spinner
+    loadingOverlay.classList.add('active');
+
     // Initialize audio context
     initAudioContext();
 
@@ -387,6 +391,9 @@ async function startDetection() {
         await camera.start();
         isRunning = true;
 
+        // Hide loading spinner
+        loadingOverlay.classList.remove('active');
+
         startBtn.disabled = true;
         stopBtn.disabled = false;
         updateStatus('Monitoring...', 'active');
@@ -395,6 +402,7 @@ async function startDetection() {
 
     } catch (error) {
         console.error('[ERROR] Failed to start:', error);
+        loadingOverlay.classList.remove('active');
         updateStatus('Camera access denied', 'normal');
         alert('Could not access camera. Please allow camera permissions and try again.');
     }

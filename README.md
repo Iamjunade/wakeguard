@@ -1,42 +1,170 @@
-# WakeGuard - Driver Drowsiness Detection System
+# 👁️ WakeGuard - Driver Drowsiness Detection System
 
-WakeGuard is a real-time computer vision application that detects driver drowsiness and yawning to prevent accidents. It uses facial landmarks to monitor eye aspect ratio (EAR) and mouth aspect ratio (MAR).
+<div align="center">
 
-## Features
-- **Real-time Face Tracking**: Uses robust OpenCV face detection.
-- **Drowsiness Detection**: trigger alarm if eyes are closed for ~2 seconds.
-- **Yawn Detection**: Alert if yawning is detected.
-- **Fallback Mode**: Automatically switches to simplified detection if your hardware has compatibility issues.
-- **Non-Intrusive**: Works with any standard webcam.
+**Real-time AI-powered drowsiness detection to keep drivers safe**
 
-## Prerequisites
-1.  **Python 3.7+**: [Download Python](https://www.python.org/downloads/) (Ensure you check "Add Python to PATH" during installation).
+[![Made with Python](https://img.shields.io/badge/Python-3.7+-blue?logo=python&logoColor=white)](https://python.org)
+[![Web App](https://img.shields.io/badge/Web-MediaPipe-green?logo=google&logoColor=white)](https://mediapipe.dev)
+[![License](https://img.shields.io/badge/License-MIT-yellow)](LICENSE)
 
-## Installation
-1.  **Unzip the project** to a folder.
-2.  **Open a terminal** (Command Prompt/PowerShell) in that folder.
-3.  **Install dependencies**:
-    ```powershell
-    pip install -r requirements.txt
-    ```
-    *Note: Installing `dlib` might require CMake. If `pip install dlib` fails, try installing the pre-built wheel or install Visual Studio C++ Build Tools.*
+**Team META MINDS** | Team Lead: Mohd Junaid Pasha
 
-4.  **Download the Model**:
-    The app requires `shape_predictor_68_face_landmarks.dat`.
-    - Download it from: [http://dlib.net/files/shape_predictor_68_face_landmarks.dat.bz2](http://dlib.net/files/shape_predictor_68_face_landmarks.dat.bz2)
-    - Extract the `.dat` file and place it in this project folder.
+Under guidance of **Dr. K Sampath**
 
-## How to Run
-Double-click `run_wakeguard.bat` 
-OR 
-Run command:
-```powershell
+[Desktop App](#-desktop-version) • [Web App](#-web-version) • [Features](#-features) • [Demo](#-how-it-works)
+
+</div>
+
+---
+
+## ✨ Features
+
+| Feature | Description |
+|---------|-------------|
+| 👁️ **Eye Tracking** | Real-time Eye Aspect Ratio (EAR) monitoring using facial landmarks |
+| ⏱️ **2-Second Alert** | Alarm triggers if eyes closed for 2+ seconds |
+| 🔔 **Audio Alarm** | Loud beeping alert to wake drowsy drivers |
+| 📱 **SMS Notification** | Automatic emergency SMS via HTTPSMS API |
+| 🌐 **Web Version** | Browser-based - works on any device with a webcam |
+| 🖥️ **Desktop Version** | Python app with OpenCV + dlib |
+
+---
+
+## 🌐 Web Version
+
+**Live Demo:** [wakeguard.vercel.app](https://wakeguard.vercel.app)
+
+### How to Run Locally
+```bash
+cd wakeguard-web
+python -m http.server 8000
+```
+Open: http://localhost:8000
+
+### Tech Stack
+- **MediaPipe Face Mesh** - 468 facial landmarks
+- **Web Audio API** - Programmatic alarm sound
+- **HTTPSMS API** - SMS alerts
+- **Vanilla JS + CSS** - No frameworks needed
+
+---
+
+## 🖥️ Desktop Version
+
+### Prerequisites
+- Python 3.7+
+- Webcam
+
+### Installation
+```bash
+# Install dependencies
+pip install -r requirements.txt
+
+# Download the facial landmark model
+# From: http://dlib.net/files/shape_predictor_68_face_landmarks.dat.bz2
+# Extract and place in project folder
+```
+
+### How to Run
+```bash
+# Option 1: Double-click
+run_wakeguard.bat
+
+# Option 2: Command line
 python drowsiness_detect.py
 ```
 
-## Controls
-- **q**: Quit the application.
+### Controls
+| Key | Action |
+|-----|--------|
+| `q` | Quit application |
 
-## Troubleshooting
-- **"Dlib Error"**: The app has automatically switched to Fallback Mode. It will still detect drowsiness but using a simpler method.
-- **No Alarm**: Make sure your volume is up and `alarm.wav` is present in the folder.
+---
+
+## 🎯 How It Works
+
+```
+┌─────────────┐    ┌──────────────┐    ┌─────────────┐
+│   Webcam    │───▶│  Face Mesh   │───▶│ EAR Calc    │
+│   Frame     │    │  Detection   │    │ (Eye Ratio) │
+└─────────────┘    └──────────────┘    └─────────────┘
+                                              │
+                                              ▼
+┌─────────────┐    ┌──────────────┐    ┌─────────────┐
+│  SMS Alert  │◀───│   Trigger    │◀───│ Eyes Closed │
+│  (HTTPSMS)  │    │    Alarm     │    │ > 2 seconds │
+└─────────────┘    └──────────────┘    └─────────────┘
+```
+
+**Eye Aspect Ratio (EAR) Formula:**
+```
+EAR = (||p2-p6|| + ||p3-p5||) / (2 × ||p1-p4||)
+```
+When EAR drops below threshold (0.22) → Eyes are closed
+
+---
+
+## 👥 Team META MINDS
+
+| Role | Name |
+|------|------|
+| **Team Lead** | Mohd Junaid Pasha |
+| **Member** | Mohd Saif Patel |
+| **Member** | Farjana Shaikh |
+| **Mentor** | Dr. K Sampath |
+
+---
+
+## 📁 Project Structure
+
+```
+WakeGuard/
+├── drowsiness_detect.py     # Desktop Python app
+├── requirements.txt         # Python dependencies
+├── alarm.wav               # Alert sound file
+├── run_wakeguard.bat       # Windows launcher
+├── shape_predictor_68_face_landmarks.dat  # dlib model
+└── wakeguard-web/          # Web version
+    ├── index.html          # Main page
+    ├── style.css           # Styling
+    ├── app.js              # Detection logic
+    └── package.json        # NPM config
+```
+
+---
+
+## 🚀 Quick Start
+
+### Web (Recommended for Demo)
+1. Visit [wakeguard.vercel.app](https://wakeguard.vercel.app)
+2. Click **Start Detection**
+3. Allow camera access
+4. Close eyes for 2 seconds to test alarm
+
+### Desktop
+1. Run `run_wakeguard.bat`
+2. Face the camera
+3. Close eyes to test detection
+
+---
+
+## 🔒 Secret Settings
+
+Type `pasha123` anywhere on the web page to access hidden settings for configuring SMS recipient number.
+
+---
+
+## 📄 License
+
+MIT License - Team META MINDS © 2026
+
+---
+
+<div align="center">
+
+**Made with ❤️ by Team META MINDS**
+
+*Keeping drivers safe, one blink at a time*
+
+</div>
