@@ -1,0 +1,20 @@
+{
+    "name": "wakeguard-web",
+    "version": "1.0.0",
+    "description": "WakeGuard - Browser-based Driver Drowsiness Detection System",
+    "main": "index.html",
+    "scripts": {
+        "start": "npx serve .",
+        "dev": "npx serve ."
+    },
+    "keywords": [
+        "drowsiness",
+        "detection",
+        "driver",
+        "safety",
+        "mediapipe",
+        "webcam"
+    ],
+    "author": "Team META MINDS",
+    "license": "MIT"
+}
