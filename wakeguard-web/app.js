@@ -19,9 +19,7 @@ const CONFIG = {
     // At ~10-15 FPS (browser), 20 frames ≈ 2 seconds
     CONSEC_FRAMES_THRESHOLD: 20,
 
-    // SMS Configuration (TextBee API)
-    TEXTBEE_API_KEY: "257cd9a4-2ea6-4171-b1f9-95837eecc032",
-    TEXTBEE_DEVICE_ID: "699bf9c78afaf7aa2c339a1f",
+    // SMS Configuration (Securely handled via Vercel Proxy)
     SMS_RECIPIENT: "+917780643862",
     SMS_COOLDOWN_MS: 60000, // 60 seconds between SMS
 
@@ -183,7 +181,7 @@ function getEyeLandmarks(landmarks, eyeIndices) {
 }
 
 /**
- * Send SMS alert via TextBee API
+ * Send SMS alert via Secure Vercel Proxy
  */
 async function sendSmsAlert() {
     const now = Date.now();
@@ -194,11 +192,9 @@ async function sendSmsAlert() {
     }
 
     try {
-        const url = `https://api.textbee.dev/api/v1/gateway/devices/${CONFIG.TEXTBEE_DEVICE_ID}/send-sms`;
-        const response = await fetch(url, {
+        const response = await fetch('/api/send-sms', {
             method: 'POST',
             headers: {
-                'x-api-key': CONFIG.TEXTBEE_API_KEY,
                 'Content-Type': 'application/json'
             },
             body: JSON.stringify({
