@@ -117,6 +117,26 @@ def mouth_aspect_ratio(mouth):
 # Track last SMS sent time to implement cooldown
 last_sms_time = 0
 
+def get_ip_location():
+    """
+    Get approximate location using IP-based service.
+    
+    Returns:
+        str: Google Maps URL or None if fails
+    """
+    try:
+        # Use ipapi.co for free IP-based location (no key required for low volume)
+        response = requests.get("https://ipapi.co/json/", timeout=5)
+        if response.status_code == 200:
+            data = response.json()
+            lat = data.get("latitude")
+            lon = data.get("longitude")
+            if lat and lon:
+                return f"https://www.google.com/maps?q={lat},{lon}"
+    except Exception as e:
+        print(f"[GPS] Error getting IP location: {e}")
+    return None
+
 def send_sms_alert():
     """
     Send an SMS alert via TextBee API when drowsiness is detected.
@@ -129,6 +149,11 @@ def send_sms_alert():
     # Check cooldown
     if current_time - last_sms_time < SMS_COOLDOWN_SECONDS:
         return False
+        
+    location = get_ip_location()
+    message = "⚠️ WAKEGUARD ALERT: Drowsiness detected! Please take a break and rest. - Team META MINDS"
+    if location:
+        message += f"\n\n📍 Approx. Location: {location}"
     
     try:
         url = f"https://api.textbee.dev/api/v1/gateway/devices/{TEXTBEE_DEVICE_ID}/send-sms"
@@ -138,7 +163,7 @@ def send_sms_alert():
         }
         payload = {
             "recipients": [SMS_RECIPIENT_NUMBER],
-            "message": "⚠️ WAKEGUARD ALERT: Drowsiness detected! Please take a break and rest. - Team META MINDS"
+            "message": message
         }
         
         response = requests.post(url, json=payload, headers=headers, timeout=5)

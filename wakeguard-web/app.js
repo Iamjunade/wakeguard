@@ -174,6 +174,31 @@ function calculateEAR(eyeLandmarks) {
 }
 
 /**
+ * Get current coordinates using Geolocation API
+ */
+async function getCurrentLocation() {
+    return new Promise((resolve) => {
+        if (!navigator.geolocation) {
+            console.warn('[GPS] Geolocation not supported');
+            resolve(null);
+            return;
+        }
+
+        navigator.geolocation.getCurrentPosition(
+            (pos) => {
+                const { latitude, longitude } = pos.coords;
+                resolve(`https://www.google.com/maps?q=${latitude},${longitude}`);
+            },
+            (err) => {
+                console.warn('[GPS] Error getting location:', err.message);
+                resolve(null);
+            },
+            { enableHighAccuracy: true, timeout: 5000 }
+        );
+    });
+}
+
+/**
  * Extract eye landmark coordinates from face mesh results
  */
 function getEyeLandmarks(landmarks, eyeIndices) {
@@ -191,6 +216,8 @@ async function sendSmsAlert() {
         return;
     }
 
+    const location = await getCurrentLocation();
+
     try {
         const response = await fetch('/api/send-sms', {
             method: 'POST',
@@ -199,7 +226,8 @@ async function sendSmsAlert() {
             },
             body: JSON.stringify({
                 recipients: [CONFIG.SMS_RECIPIENT],
-                message: '⚠️ WAKEGUARD ALERT: Drowsiness detected! Please take a break and rest. - Team META MINDS'
+                message: '⚠️ WAKEGUARD ALERT: Drowsiness detected! Please take a break and rest. - Team META MINDS',
+                location: location
             })
         });
 

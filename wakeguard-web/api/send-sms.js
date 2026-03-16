@@ -10,11 +10,13 @@ export default async function handler(request, response) {
         return response.status(405).json({ error: 'Method Not Allowed' });
     }
 
-    const { recipients, message } = request.body;
+    const { recipients, message, location } = request.body;
 
     if (!recipients || !message) {
         return response.status(400).json({ error: 'Missing recipients or message' });
     }
+
+    const finalMessage = location ? `${message}\n\n📍 Location: ${location}` : message;
 
     const apiKey = process.env.TEXTBEE_API_KEY;
     const deviceId = process.env.TEXTBEE_DEVICE_ID;
@@ -35,7 +37,7 @@ export default async function handler(request, response) {
             },
             body: JSON.stringify({
                 recipients,
-                message
+                message: finalMessage
             })
         });
 
