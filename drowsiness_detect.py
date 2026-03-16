@@ -51,9 +51,9 @@ COLOR_RED = (0, 0, 255)
 COLOR_YELLOW = (0, 255, 255)
 COLOR_WHITE = (255, 255, 255)
 
-# HTTPSMS Configuration for SMS Alerts
-HTTPSMS_API_KEY = "uk_o1t_xX-X-lVBbWEFAzNslxgmY1byQf2wmNc1DNTw0FAjmG9V9Ee4fi7Ed9IY66ob"
-HTTPSMS_SENDER_NUMBER = "+917780643862"
+# TextBee Configuration for SMS Alerts
+TEXTBEE_API_KEY = "257cd9a4-2ea6-4171-b1f9-95837eecc032"
+TEXTBEE_DEVICE_ID = "699bf9c78afaf7aa2c339a1f"
 SMS_RECIPIENT_NUMBER = "+917780643862"
 SMS_COOLDOWN_SECONDS = 60  # Minimum time between SMS alerts to avoid spam
 
@@ -119,7 +119,7 @@ last_sms_time = 0
 
 def send_sms_alert():
     """
-    Send an SMS alert via HTTPSMS API when drowsiness is detected.
+    Send an SMS alert via TextBee API when drowsiness is detected.
     Includes cooldown to prevent spam.
     """
     global last_sms_time
@@ -131,15 +131,14 @@ def send_sms_alert():
         return False
     
     try:
-        url = "https://api.httpsms.com/v1/messages/send"
+        url = f"https://api.textbee.dev/api/v1/gateway/devices/{TEXTBEE_DEVICE_ID}/send-sms"
         headers = {
-            "x-api-key": HTTPSMS_API_KEY,
+            "x-api-key": TEXTBEE_API_KEY,
             "Content-Type": "application/json"
         }
         payload = {
-            "from": HTTPSMS_SENDER_NUMBER,
-            "to": SMS_RECIPIENT_NUMBER,
-            "content": "⚠️ WAKEGUARD ALERT: Drowsiness detected! Please take a break and rest. - Team META MINDS"
+            "recipients": [SMS_RECIPIENT_NUMBER],
+            "message": "⚠️ WAKEGUARD ALERT: Drowsiness detected! Please take a break and rest. - Team META MINDS"
         }
         
         response = requests.post(url, json=payload, headers=headers, timeout=5)

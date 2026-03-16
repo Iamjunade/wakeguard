@@ -36,7 +36,7 @@ The primary objectives of the WakeGuard application include:
 1. **Real-Time Drowsiness Detection:** Monitor a user's eye aspect ratio (EAR) using webcam feeds to detect sleep onset within 2 seconds.
 2. **Geofenced Location Alarms [Recommended/Assumed]:** Allow users to set a destination radius, triggering high-decibel alarms when crossing the boundary.
 3. **Multi-Platform Accessibility:** Deliver the solution across Desktop (Python/OpenCV) and Web (HTML/JS/MediaPipe).
-4. **Emergency Escalation:** Send automated SMS notifications via the HTTPSMS API to designated contacts if the user fails to respond to alarms.
+4. **Emergency Escalation:** Send automated SMS notifications via the TextBee API to designated contacts if the user fails to respond to alarms.
 
 ---
 
@@ -46,7 +46,7 @@ The primary objectives of the WakeGuard application include:
 The system architecture follows a decoupled client-server model, though the majority of the processing (both computer vision and location tracking) is optimized for edge execution (client-side) to preserve battery and reduce latency.
 
 1. **Frontend / Edge Client:** Houses the Camera processing pipeline (MediaPipe/dlib) and the GPS/Location Tracker. The frontend continuously polls the HTML5 Geolocation API (or native GPS modules in mobile environments) and compares the current coordinate vector against the destination vector.
-2. **Notification Engine:** Interacts with the browser's Web Audio API for local alarms and triggers external POST requests to the HTTPSMS REST API for remote alerting.
+2. **Notification Engine:** Interacts with the browser's Web Audio API for local alarms and triggers external POST requests to the TextBee REST API for remote alerting.
 3. **Backend / Storage [Recommended/Assumed]:** While the current repo is entirely static/client-side, an assumed backend (Node.js/Express) manages user profiles, saved transit routes, and OAuth authentication.
 
 ### Tech Stack Breakdown
@@ -54,7 +54,7 @@ The system architecture follows a decoupled client-server model, though the majo
 *   **Languages:** Python 3.7+, JavaScript (ES6+), HTML5, CSS3.
 *   **Computer Vision Libraries:** `opencv-python`, `dlib`, `imutils` (Desktop); `@mediapipe/face_mesh` (Web).
 *   **Math & Geometry:** `scipy.spatial.distance` (for Euclidean calculations).
-*   **Alerting APIs:** HTTPSMS API, Web Audio API, `pygame.mixer` (for desktop audio).
+*   **Alerting APIs:** TextBee API, Web Audio API, `pygame.mixer` (for desktop audio).
 *   **Deployment:** Vercel (Web representation).
 
 **Assumed / Recommended Stack Extensions for Location Alarms:**
@@ -116,19 +116,19 @@ def eye_aspect_ratio(eye):
 The threshold (`CONFIG.EAR_THRESHOLD = 0.22` in JS, `0.25` in Python) dictates when eyes are closed. If the eyes remain closed for `CONSEC_FRAMES_THRESHOLD` (approx. 2 seconds), the `triggerAlarm()` sequence executes.
 
 ### API Integrations
-The `package.json` and equivalent scripts reveal the absence of heavy backend frameworks, opting for lightweight Fetch API calls. The **HTTPSMS API** is deeply integrated into `app.js`:
+The `package.json` and equivalent scripts reveal the absence of heavy backend frameworks, opting for lightweight Fetch API calls. The **TextBee API** is deeply integrated into `app.js`:
 ```javascript
 // From app.js
-const response = await fetch('https://api.httpsms.com/v1/messages/send', {
+const url = `https://api.textbee.dev/api/v1/gateway/devices/${CONFIG.TEXTBEE_DEVICE_ID}/send-sms`;
+const response = await fetch(url, {
     method: 'POST',
     headers: {
-        'x-api-key': CONFIG.HTTPSMS_API_KEY,
+        'x-api-key': CONFIG.TEXTBEE_API_KEY,
         'Content-Type': 'application/json'
     },
     body: JSON.stringify({
-        from: CONFIG.HTTPSMS_SENDER,
-        to: CONFIG.SMS_RECIPIENT,
-        content: '⚠️ WAKEGUARD ALERT: Drowsiness detected! Please take a break and rest.'
+        recipients: [CONFIG.SMS_RECIPIENT],
+        message: '⚠️ WAKEGUARD ALERT: Drowsiness detected! Please take a break and rest.'
     })
 });
 ```
@@ -156,7 +156,7 @@ Based on the Web Application structure (`wakeguard-web/index.html` and `style.cs
 ### Identified & Assumed Test Suites
 The repository currently lacks a formalized testing directory. However, to maintain enterprise-grade reliability for an application triggering emergency SMS messages and critical location data, the following **[Recommended/Assumed]** test architecture must be implemented:
 *   **Jest:** Fast, snapshot-based unit testing for the Geofencing calculations (e.g., verifying `calculateHaversineDistance` returns `< 1%` margin of error).
-*   **Mocha & Chai:** For testing the asynchronous HTTPSMS API integrations, mocking network failures to ensure the app handles API limits (cooldown gracefully catches rapid requests).
+*   **Mocha & Chai:** For testing the asynchronous TextBee API integrations, mocking network failures to ensure the app handles API limits (cooldown gracefully catches rapid requests).
 *   **Selenium/Puppeteer:** End-to-End (E2E) testing for verifying MediaPipe Face Mesh canvas renders across different browser configurations (Chrome, Firefox, Safari).
 
 ### Location Accuracy & Battery Consumption Test Plan

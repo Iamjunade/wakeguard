@@ -25,7 +25,7 @@ Under guidance of **Dr. K Sampath**
 | 👁️ **Eye Tracking** | Real-time Eye Aspect Ratio (EAR) monitoring using facial landmarks |
 | ⏱️ **2-Second Alert** | Alarm triggers if eyes closed for 2+ seconds |
 | 🔔 **Audio Alarm** | Loud beeping alert to wake drowsy drivers |
-| 📱 **SMS Notification** | Automatic emergency SMS via HTTPSMS API |
+| 📱 **SMS Notification** | Automatic emergency SMS via TextBee API |
 | 🌐 **Web Version** | Browser-based - works on any device with a webcam |
 | 🖥️ **Desktop Version** | Python app with OpenCV + dlib |
 
@@ -45,7 +45,7 @@ Open: http://localhost:8000
 ### Tech Stack
 - **MediaPipe Face Mesh** - 468 facial landmarks
 - **Web Audio API** - Programmatic alarm sound
-- **HTTPSMS API** - SMS alerts
+- **TextBee API** - SMS alerts
 - **Vanilla JS + CSS** - No frameworks needed
 
 ---
@@ -93,7 +93,7 @@ python drowsiness_detect.py
                                               ▼
 ┌─────────────┐    ┌──────────────┐    ┌─────────────┐
 │  SMS Alert  │◀───│   Trigger    │◀───│ Eyes Closed │
-│  (HTTPSMS)  │    │    Alarm     │    │ > 2 seconds │
+│  (TextBee)  │    │    Alarm     │    │ > 2 seconds │
 └─────────────┘    └──────────────┘    └─────────────┘
 ```
 
