@@ -23,6 +23,7 @@ import os
 import sys
 import numpy as np
 import requests
+import datetime
 
 # ═══════════════════════════════════════════════════════════════════════════════
 #                              CONFIGURATION
@@ -137,7 +138,7 @@ def get_ip_location():
         print(f"[GPS] Error getting IP location: {e}")
     return None
 
-def send_sms_alert():
+def send_sms_alert(frame=None):
     """
     Send an SMS alert via TextBee API when drowsiness is detected.
     Includes cooldown to prevent spam.
@@ -151,16 +152,38 @@ def send_sms_alert():
         return False
         
     location = get_ip_location()
-    message = "⚠️ WAKEGUARD ALERT: Drowsiness detected! Please take a break and rest. - Team META MINDS"
-    if location:
-        message += f"\n\n📍 Approx. Location: {location}"
+    now_str = datetime.datetime.now().strftime("%Y-%m-%d %I:%M %p")
     
+    message = (
+        f"⚠️ WAKEGUARD ALERT: Drowsiness detected!\n"
+        f"Time: {now_str}\n"
+    )
+    if location:
+        message += f"📍 Approx. Location: {location}\n"
+        
+    message += "Please take a break and rest. - Team META MINDS"
+    
+    if frame is not None:
+        cv2.imwrite("alert_frame.jpg", frame)
+        try:
+            with open("alert_frame.jpg", "rb") as f:
+                r = requests.post("https://catbox.moe/user/api.php", 
+                                  data={"reqtype": "fileupload"}, 
+                                  files={"fileToUpload": f},
+                                  timeout=10)
+            if r.status_code == 200 and r.text.startswith("http"):
+                message += f"\n📷 Evidence: {r.text.strip()}"
+                print(f"[SMS] Frame uploaded successfully: {r.text.strip()}")
+        except Exception as e:
+            print(f"[SMS] Failed to upload frame: {e}")
+            
     try:
         url = f"https://api.textbee.dev/api/v1/gateway/devices/{TEXTBEE_DEVICE_ID}/send-sms"
         headers = {
             "x-api-key": TEXTBEE_API_KEY,
             "Content-Type": "application/json"
         }
+        
         payload = {
             "recipients": [SMS_RECIPIENT_NUMBER],
             "message": message
@@ -464,7 +487,7 @@ def main():
                         if audio_enabled:
                             pygame.mixer.music.play(-1)
                         # Send SMS Alert
-                        send_sms_alert()
+                        send_sms_alert(frame)
                     
                     cv2.rectangle(frame, (0, 40), (W, H), COLOR_RED, 4)
                     cv2.putText(frame, "!!! DROWSINESS ALERT !!!", 
