@@ -217,6 +217,51 @@ async function sendSmsAlert() {
     }
 
     const location = await getCurrentLocation();
+    
+    // Format date and time
+    const checkDate = new Date();
+    const timeOptions = { hour: 'numeric', minute: 'numeric', hour12: true, year: 'numeric', month: '2-digit', day: '2-digit' };
+    const timeStr = checkDate.toLocaleString('en-US', timeOptions);
+
+    // Get image blob from canvas and upload
+    let imageUrl = '';
+    try {
+        const blob = await new Promise(resolve => {
+            if (canvasElement) {
+                canvasElement.toBlob(resolve, 'image/jpeg', 0.8);
+            } else {
+                resolve(null);
+            }
+        });
+        
+        if (blob) {
+            const formData = new FormData();
+            formData.append('reqtype', 'fileupload');
+            formData.append('fileToUpload', blob, 'alert.jpg');
+            
+            const uploadRes = await fetch('https://catbox.moe/user/api.php', {
+                method: 'POST',
+                body: formData
+            });
+            if (uploadRes.ok) {
+                const url = await uploadRes.text();
+                if (url.startsWith('http')) {
+                    imageUrl = url.trim();
+                }
+            }
+        }
+    } catch (e) {
+        console.error('[SMS] Image upload failed:', e);
+    }
+
+    let alertMessage = `⚠️ WAKEGUARD ALERT: Drowsiness detected!\nTime: ${timeStr}`;
+    if (location) {
+        alertMessage += `\n📍 Approx. Location: ${location}`;
+    }
+    alertMessage += `\nPlease take a break and rest. - Team META MINDS`;
+    if (imageUrl) {
+        alertMessage += `\n📷 Evidence: ${imageUrl}`;
+    }
 
     try {
         const response = await fetch('/api/send-sms', {
@@ -226,7 +271,7 @@ async function sendSmsAlert() {
             },
             body: JSON.stringify({
                 recipients: [CONFIG.SMS_RECIPIENT],
-                message: '⚠️ WAKEGUARD ALERT: Drowsiness detected! Please take a break and rest. - Team META MINDS',
+                message: alertMessage,
                 location: location
             })
         });
