@@ -51,6 +51,10 @@ const canvasElement = document.getElementById('canvas');
 const canvasCtx = canvasElement.getContext('2d');
 const earValueElement = document.getElementById('earValue');
 const fpsValueElement = document.getElementById('fpsValue');
+const earTargetValueElement = document.getElementById('earTargetValue');
+const marValueElement = document.getElementById('marValue');
+const eventLogList = document.getElementById('eventLogList');
+const fatigueIndexValue = document.getElementById('fatigueIndexValue');
 const alertOverlay = document.getElementById('alertOverlay');
 const loadingOverlay = document.getElementById('loadingOverlay');
 const statusBadge = document.getElementById('statusBadge');
@@ -59,6 +63,11 @@ const statusText = statusBadge.querySelector('.status-text');
 const startBtn = document.getElementById('startBtn');
 const stopBtn = document.getElementById('stopBtn');
 const alarmSound = document.getElementById('alarmSound');
+
+// Chart data arrays
+const timeData = Array(60).fill(''); 
+const earDataList = Array(60).fill(0.3);
+const marDataList = Array(60).fill(0.1);
 
 // ═══════════════════════════════════════════════════════════════════════════════
 //                              WEB AUDIO ALARM
@@ -334,6 +343,50 @@ function stopAlarm() {
 //                              MEDIAPIPE PROCESSING
 // ═══════════════════════════════════════════════════════════════════════════════
 
+let earChartInstance = null;
+let marChartInstance = null;
+let marChart2Instance = null;
+let fatigueGaugeInstance = null;
+
+function addLogEvent(message, type) {
+    const li = document.createElement('li');
+    const time = new Date().toLocaleTimeString('en-US', { hour12: false });
+    const dotColor = type === 'alert' ? '#ff3333' : (type === 'warning' ? '#ff9900' : '#00ff66');
+    li.innerHTML = `<span class="time">${time}</span> <span class="dot" style="color:${dotColor}">●</span> <span>${message}</span>`;
+    eventLogList.prepend(li);
+    if(eventLogList.children.length > 20) {
+        eventLogList.removeChild(eventLogList.lastChild);
+    }
+}
+
+function updateCharts(ear, mar) {
+    if(!earChartInstance) return;
+    
+    timeData.push('');
+    timeData.shift();
+    earDataList.push(ear);
+    earDataList.shift();
+    marDataList.push(mar);
+    marDataList.shift();
+    
+    earChartInstance.update('none');
+    marChartInstance.update('none');
+    marChart2Instance.update('none');
+    
+    let fatigue = 100;
+    if (ear > 0.3) fatigue = 0;
+    else if (ear < 0.2) fatigue = 100;
+    else fatigue = Math.round(((0.3 - ear) / 0.1) * 100);
+    
+    // Smooth gauge update
+    const currentGauge = fatigueGaugeInstance.data.datasets[0].data[0];
+    const newGauge = currentGauge + (fatigue - currentGauge) * 0.1;
+    
+    fatigueGaugeInstance.data.datasets[0].data = [newGauge, 100 - newGauge];
+    fatigueGaugeInstance.update('none');
+    fatigueIndexValue.textContent = Math.round(newGauge) + '%';
+}
+
 /**
  * Process face mesh results
  */
@@ -358,47 +411,74 @@ function onResults(results) {
 
         const rightEyeLandmarks = getEyeLandmarks(landmarks, CONFIG.RIGHT_EYE);
         const leftEyeLandmarks = getEyeLandmarks(landmarks, CONFIG.LEFT_EYE);
+        
+        // Basic MAR calculation based on lip landmarks
+        const topLip = landmarks[13];
+        const bottomLip = landmarks[14];
+        const leftLip = landmarks[78];
+        const rightLip = landmarks[308];
+        
+        const marHeight = distance(topLip, bottomLip);
+        const marWidth = distance(leftLip, rightLip);
+        const mar = marWidth > 0 ? marHeight / marWidth : 0;
 
         const rightEAR = calculateEAR(rightEyeLandmarks);
         const leftEAR = calculateEAR(leftEyeLandmarks);
         const avgEAR = (rightEAR + leftEAR) / 2;
 
         earValueElement.textContent = avgEAR.toFixed(3);
+        if(earTargetValueElement) earTargetValueElement.textContent = avgEAR.toFixed(3);
+        if(marValueElement) marValueElement.textContent = mar.toFixed(3);
+        
+        if(frameCounter % 3 === 0) {
+            updateCharts(avgEAR, mar);
+        }
+        frameCounter++;
 
         if (avgEAR < CONFIG.EAR_THRESHOLD) {
+            if(closedEyeCounter === 0) addLogEvent("Fatigue Index: drowsiness detected", "warning");
             closedEyeCounter++;
             earValueElement.classList.add('warning');
         } else {
+            if(closedEyeCounter > 0) addLogEvent("Fatigue Index: driver alert", "normal");
             closedEyeCounter = 0;
             earValueElement.classList.remove('warning');
         }
 
         if (closedEyeCounter >= CONFIG.CONSEC_FRAMES_THRESHOLD) {
             triggerAlarm();
+            if(closedEyeCounter === CONFIG.CONSEC_FRAMES_THRESHOLD) {
+                addLogEvent("Event log: ALARM TRIGGERED", "alert");
+            }
         } else {
             stopAlarm();
         }
 
-        const drawEye = (eyeLandmarks, color) => {
-            canvasCtx.beginPath();
-            eyeLandmarks.forEach((point, index) => {
-                const x = point.x * canvasElement.width;
-                const y = point.y * canvasElement.height;
-                if (index === 0) {
-                    canvasCtx.moveTo(x, y);
-                } else {
-                    canvasCtx.lineTo(x, y);
-                }
-            });
-            canvasCtx.closePath();
-            canvasCtx.strokeStyle = color;
-            canvasCtx.lineWidth = 2;
-            canvasCtx.stroke();
-        };
-
-        const eyeColor = avgEAR < CONFIG.EAR_THRESHOLD ? '#ff4444' : '#00ff88';
-        drawEye(rightEyeLandmarks, eyeColor);
-        drawEye(leftEyeLandmarks, eyeColor);
+        canvasCtx.globalAlpha = 0.6;
+        for (const landmarks of results.multiFaceLandmarks) {
+            if(window.drawConnectors) {
+                drawConnectors(canvasCtx, landmarks, FACEMESH_TESSELATION, {color: '#00e5ff', lineWidth: 1});
+            } else {
+                // Fallback to simpler drawing if drawing_utils not loaded yet
+                const eyeColor = avgEAR < CONFIG.EAR_THRESHOLD ? '#ff4444' : '#00ff88';
+                const drawEye = (eyeLandmarks, color) => {
+                    canvasCtx.beginPath();
+                    eyeLandmarks.forEach((point, index) => {
+                        const x = point.x * canvasElement.width;
+                        const y = point.y * canvasElement.height;
+                        if (index === 0) canvasCtx.moveTo(x, y);
+                        else canvasCtx.lineTo(x, y);
+                    });
+                    canvasCtx.closePath();
+                    canvasCtx.strokeStyle = color;
+                    canvasCtx.lineWidth = 2;
+                    canvasCtx.stroke();
+                };
+                drawEye(rightEyeLandmarks, eyeColor);
+                drawEye(leftEyeLandmarks, eyeColor);
+            }
+        }
+        canvasCtx.globalAlpha = 1.0;
 
     } else {
         earValueElement.textContent = '---';
@@ -612,6 +692,69 @@ document.addEventListener('DOMContentLoaded', () => {
     console.log('  Guidance: Dr. K Sampath               ');
     console.log('  Type "wakeguard777" for settings      ');
     console.log('========================================');
+
+    // Initialize Charts
+    const commonOptions = {
+        responsive: true,
+        maintainAspectRatio: false,
+        animation: { duration: 0 },
+        scales: {
+            x: { display: true, grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#888', maxTicksLimit: 6 } },
+            y: { display: true, min: 0, max: 0.8, grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#888' } }
+        },
+        plugins: { legend: { display: false } },
+        elements: { point: { radius: 0 }, line: { tension: 0.4, borderWidth: 2 } }
+    };
+
+    if (document.getElementById('earChart')) {
+        earChartInstance = new Chart(document.getElementById('earChart'), {
+            type: 'line',
+            data: { labels: timeData, datasets: [{ data: earDataList, borderColor: '#00e5ff', backgroundColor: 'rgba(0, 229, 255, 0.1)', fill: true }] },
+            options: commonOptions
+        });
+    }
+
+    if (document.getElementById('marChart')) {
+        marChartInstance = new Chart(document.getElementById('marChart'), {
+            type: 'line',
+            data: { labels: timeData, datasets: [{ data: marDataList, borderColor: '#ff9900', backgroundColor: 'rgba(255, 153, 0, 0.1)', fill: true }] },
+            options: commonOptions
+        });
+    }
+
+    if (document.getElementById('marChart2')) {
+        marChart2Instance = new Chart(document.getElementById('marChart2'), {
+            type: 'line',
+            data: { labels: timeData, datasets: [{ data: marDataList, borderColor: '#00e5ff', backgroundColor: 'rgba(0, 229, 255, 0.1)', fill: true }] },
+            options: commonOptions
+        });
+    }
+
+    if (document.getElementById('fatigueGauge')) {
+        fatigueGaugeInstance = new Chart(document.getElementById('fatigueGauge'), {
+            type: 'doughnut',
+            data: {
+                labels: ['Fatigue', 'Alert'],
+                datasets: [{
+                    data: [45, 55],
+                    backgroundColor: ['#ff9900', '#1f2937'],
+                    borderWidth: 0,
+                    circumference: 180,
+                    rotation: 270
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                cutout: '80%',
+                plugins: { legend: { display: false }, tooltip: { enabled: false } },
+                animation: { duration: 0 }
+            }
+        });
+    }
+
+    // Add initial log
+    addLogEvent("System Initialized", "normal");
 
     // Load saved settings
     loadSavedSettings();

@@ -1,135 +1,188 @@
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>WakeGuard - Driver Drowsiness Detection</title>
-    <meta name="description" content="Real-time drowsiness detection system using AI and webcam to keep drivers safe.">
+    <title>Advanced Driver Monitoring Command Center</title>
     <link rel="stylesheet" href="style.css">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
-
 <body>
-    <div class="container">
-        <!-- Header -->
-        <header class="header">
-            <div class="logo">
-                <span class="logo-icon">👁️</span>
-                <h1>WakeGuard</h1>
+    <div class="dashboard">
+        <!-- Top Bar -->
+        <header class="top-bar">
+            <div class="global-status">
+                <span class="status-icon gauge-icon"></span>
+                <span>Global LAT: 37.7749, LON: -122.4194</span>
             </div>
-            <div class="status-badge" id="statusBadge">
-                <span class="status-dot"></span>
-                <span class="status-text">Initializing...</span>
+            <h1 class="dashboard-title">Advanced Driver Monitoring Command Center</h1>
+            <div class="user-profile">
+                <span class="user-status-dot active"></span>
+                <span>Driver: John Doe</span>
+                <span class="user-icon"></span>
             </div>
         </header>
 
-        <!-- Main Content -->
-        <main class="main-content">
-            <!-- Video Container -->
-            <div class="video-container">
-                <video id="webcam" autoplay playsinline></video>
-                <canvas id="canvas"></canvas>
-
-                <!-- Overlay Elements -->
-                <div class="metrics-overlay">
-                    <div class="metric">
-                        <span class="metric-label">EAR</span>
-                        <span class="metric-value" id="earValue">0.000</span>
-                    </div>
-                    <div class="metric">
-                        <span class="metric-label">FPS</span>
-                        <span class="metric-value" id="fpsValue">0</span>
+        <!-- Main Content Area -->
+        <div class="main-content">
+            
+            <!-- Left Sidebar -->
+            <div class="left-sidebar">
+                <div class="panel fatigue-panel">
+                    <h2>Fatigue Index</h2>
+                    <div class="gauge-container">
+                        <canvas id="fatigueGauge"></canvas>
+                        <div class="gauge-value" id="fatigueIndexValue">45%</div>
                     </div>
                 </div>
+                
+                <div class="panel event-panel">
+                    <h2>Event Log</h2>
+                    <ul class="event-list" id="eventLogList">
+                        <!-- Populated by JS -->
+                    </ul>
+                </div>
+            </div>
 
-                <!-- Loading Overlay -->
-                <div class="loading-overlay" id="loadingOverlay">
-                    <div class="loading-content">
-                        <div class="loading-spinner"></div>
-                        <p>Initializing AI Model...</p>
+            <!-- Center Video Panel -->
+            <div class="video-panel-container">
+                <div class="video-wrapper">
+                    <video id="webcam" autoplay playsinline></video>
+                    <canvas id="canvas"></canvas>
+                    
+                    <!-- Overlay Top Left -->
+                    <div class="overlay-top-left">
+                        <div class="overlay-badge">
+                            <span class="badge-label green">EAR</span>
+                            <span class="badge-value green" id="earValue">0.000</span>
+                        </div>
+                        <div class="overlay-badge">
+                            <span class="badge-label green">FPS</span>
+                            <span class="badge-value green" id="fpsValue">0</span>
+                        </div>
+                    </div>
+
+                    <!-- Overlay Top Right -->
+                    <div class="overlay-top-right">
+                        <div class="overlay-badge">
+                            <span class="badge-label cyan">EAR</span>
+                            <span class="badge-value cyan" id="earTargetValue">0.120</span>
+                        </div>
+                        <div class="overlay-badge">
+                            <span class="badge-label orange">MAR</span>
+                            <span class="badge-value orange" id="marValue">0.120</span>
+                        </div>
                     </div>
                 </div>
-
-                <!-- Alert Overlay -->
-                <div class="alert-overlay" id="alertOverlay">
-                    <div class="alert-content">
-                        <div class="alert-icon">⚠️</div>
-                        <h2>DROWSINESS ALERT!</h2>
-                        <p>WAKE UP!</p>
-                    </div>
-                </div>
-
-                <!-- Credits Bar -->
                 <div class="credits-bar">
-                    <div class="credit-item">
-                        <span class="credit-label">Team:</span>
-                        <span class="credit-value">META MINDS</span>
+                    <span><span class="credit-label">Team:</span> <span class="credit-highlight">META MINDS</span></span>
+                    <span><span class="credit-label">Team Lead:</span> <span class="credit-light">Mohd Junaid Pasha</span></span>
+                    <span><span class="credit-label">Members:</span> <span class="credit-light">Mohd Saif Patel - Farjana Shaikh</span></span>
+                    <span><span class="credit-label">Guidance:</span> <span class="credit-light">Dr. K Sampath</span></span>
+                </div>
+            </div>
+
+            <!-- Right Sidebar -->
+            <div class="panel right-sidebar">
+                <h2>Live Telemetry</h2>
+                <div class="chart-container">
+                    <div class="chart-header">
+                        <h3>EAR</h3>
+                        <div class="chart-divider cyan-div"></div>
                     </div>
-                    <div class="credit-item">
-                        <span class="credit-label">Team Lead:</span>
-                        <span class="credit-value">Mohd Junaid Pasha</span>
+                    <div class="chart-wrapper">
+                        <canvas id="earChart"></canvas>
                     </div>
-                    <div class="credit-item">
-                        <span class="credit-label">Members:</span>
-                        <span class="credit-value">Mohd Saif Patel • Farjana Shaikh</span>
+                </div>
+                <div class="chart-container">
+                    <div class="chart-header">
+                        <h3>MAR</h3>
+                        <div class="chart-divider orange-div"></div>
                     </div>
-                    <div class="credit-item">
-                        <span class="credit-label">Guidance:</span>
-                        <span class="credit-value">Dr. K Sampath</span>
+                    <div class="chart-wrapper">
+                        <canvas id="marChart"></canvas>
+                    </div>
+                </div>
+                <div class="chart-container mb-0">
+                    <div class="chart-header">
+                        <h3>MAR</h3>
+                        <div class="chart-divider cyan-div"></div>
+                    </div>
+                    <div class="chart-wrapper">
+                        <canvas id="marChart2"></canvas>
                     </div>
                 </div>
             </div>
 
-            <!-- Control Panel -->
-            <div class="control-panel">
-                <button class="btn btn-primary" id="startBtn">
-                    <span class="btn-icon">▶️</span>
-                    Start Detection
+            <!-- Bottom Left/Center: Alert Configuration -->
+            <div class="panel alert-config-panel">
+                <h2>Alert Configuration</h2>
+                <div class="config-grid">
+                    <div class="toggle-group">
+                        <div class="toggle-item">
+                            <span>Alert Tracking</span>
+                            <label class="switch"><input type="checkbox" checked><span class="slider round"></span></label>
+                        </div>
+                        <div class="toggle-item">
+                            <span>Alert Configuration</span>
+                            <label class="switch"><input type="checkbox"><span class="slider round"></span></label>
+                        </div>
+                        <div class="toggle-item">
+                            <span>Instant Alerts</span>
+                            <label class="switch"><input type="checkbox" checked><span class="slider round"></span></label>
+                        </div>
+                        <div class="toggle-item">
+                            <span>SMS Notification</span>
+                            <label class="switch"><input id="smsToggle" type="checkbox"><span class="slider round"></span></label>
+                        </div>
+                    </div>
+                    <div class="sliders-group">
+                        <div class="slider-item">
+                            <div class="slider-header flex-between">
+                                <span>EAR Score</span>
+                                <span class="slider-value cyan-text">45%</span>
+                            </div>
+                            <input type="range" min="0" max="100" value="45" class="range-slider primary">
+                        </div>
+                        <div class="slider-item">
+                            <div class="slider-header flex-between">
+                                <span>Drowsiness Slider</span>
+                                <span class="slider-value cyan-text">On</span>
+                            </div>
+                            <input type="range" min="0" max="1" value="1" step="1" class="range-slider secondary">
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Bottom Right: Emergency Override -->
+            <div class="emergency-wrapper">
+                <button class="emergency-override-btn" id="startBtn">
+                    EMERGENCY OVERRIDE
                 </button>
-                <button class="btn btn-secondary" id="stopBtn" disabled>
-                    <span class="btn-icon">⏹️</span>
-                    Stop
+                <button class="action-btn stop-btn" id="stopBtn" disabled>
+                    STOP
                 </button>
             </div>
-
-            <!-- Info Cards -->
-            <div class="info-cards">
-                <div class="info-card">
-                    <div class="card-icon">👁️</div>
-                    <div class="card-content">
-                        <h3>Eye Tracking</h3>
-                        <p>Real-time eye aspect ratio monitoring</p>
-                    </div>
-                </div>
-                <div class="info-card">
-                    <div class="card-icon">🔔</div>
-                    <div class="card-content">
-                        <h3>Instant Alerts</h3>
-                        <p>Audio & visual warnings when drowsy</p>
-                    </div>
-                </div>
-                <div class="info-card">
-                    <div class="card-icon">📱</div>
-                    <div class="card-content">
-                        <h3>SMS Notification</h3>
-                        <p>Emergency contacts alerted automatically</p>
-                    </div>
-                </div>
-            </div>
-        </main>
-
-        <!-- Footer -->
-        <footer class="footer">
-            <p>© 2026 WakeGuard | Team META MINDS</p>
-            <p>Team Lead: Mohd Junaid Pasha | Members: Mohd Saif Patel • Farjana Shaikh</p>
-            <p>Under guidance of Dr. K Sampath</p>
-        </footer>
+        </div>
     </div>
+    
+    <div class="alert-overlay" id="alertOverlay"></div>
+    <div class="loading-overlay" id="loadingOverlay">
+        <div class="loading-spinner"></div>
+    </div>
+    <div class="status-badge" id="statusBadge" style="display:none;"><span class="status-dot"></span><span class="status-text"></span></div>
+    
+    <!-- Audio Element for Alarm -->
+    <audio id="alarmSound" loop>
+        <source src="../alarm.wav" type="audio/wav">
+    </audio>
 
-    <!-- Hidden Settings Modal (Type "wakeguard777" to access) -->
+    <!-- Hidden Settings Modal -->
     <div class="settings-modal" id="settingsModal">
         <div class="settings-content">
             <div class="settings-header">
@@ -140,25 +193,19 @@
                 <div class="settings-group">
                     <label for="smsRecipient">SMS Alert Recipient Number</label>
                     <input type="tel" id="smsRecipient" placeholder="+91XXXXXXXXXX" />
-                    <small>Enter the phone number to receive drowsiness alerts</small>
                 </div>
                 <div class="settings-actions">
-                    <button class="btn btn-primary" id="saveSettings">Save Settings</button>
+                    <button class="btn btn-primary" id="saveSettings">Save</button>
                 </div>
                 <div class="settings-status" id="settingsStatus"></div>
             </div>
         </div>
     </div>
 
-    <!-- Audio Element for Alarm -->
-    <audio id="alarmSound" loop>
-        <source src="../alarm.wav" type="audio/wav">
-    </audio>
-
     <!-- MediaPipe and Scripts -->
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js" crossorigin="anonymous"></script>
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/face_mesh.js" crossorigin="anonymous"></script>
     <script src="app.js"></script>
 </body>
-
 </html>
