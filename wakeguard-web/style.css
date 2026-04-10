@@ -129,12 +129,14 @@ body {
 .alert-config-panel {
     grid-column: 2;
     grid-row: 2;
+    margin-right: 170px; /* Space for the emergency button */
 }
 
 .emergency-wrapper {
-    position: absolute;
-    bottom: 25px;
-    right: 350px; /* overlay on bottom right next to sidebar */
+    grid-column: 2;
+    grid-row: 2;
+    justify-self: end;
+    align-self: center;
     z-index: 10;
     display: flex; gap: 10px; flex-direction: column;
 }
@@ -393,7 +395,6 @@ input:checked + .slider:before { transform: translateX(20px); }
     background: var(--red);
     color: white;
     border: none;
-    padding: 20px 30px;
     font-size: 18px;
     font-weight: 700;
     border-radius: 12px;
@@ -401,13 +402,8 @@ input:checked + .slider:before { transform: translateX(20px); }
     text-transform: uppercase;
     box-shadow: 0 0 20px rgba(255, 51, 51, 0.4);
     transition: transform 0.2s, box-shadow 0.2s;
-    grid-column: 2;
-    grid-row: 2;
-    justify-self: end;
-    align-self: center;
-    margin-right: 20px;
     height: 120px;
-    width:150px;
+    width: 150px;
 }
 .emergency-override-btn:hover {
     transform: scale(1.02);
@@ -421,7 +417,8 @@ input:checked + .slider:before { transform: translateX(20px); }
     padding: 10px;
     border-radius: 8px;
     cursor: pointer;
-    margin-top: 5px;
+    text-transform: uppercase;
+    font-weight: 600;
 }
 .action-btn:disabled {
     opacity: 0.5;
@@ -467,23 +464,3 @@ input:checked + .slider:before { transform: translateX(20px); }
 .settings-group { display: flex; flex-direction: column; gap: 8px; margin-bottom: 20px;}
 .settings-group input { padding: 10px; background: rgba(0,0,0,0.5); border: 1px solid var(--panel-border); color: white; border-radius: 8px; }
 .btn-primary { background: var(--cyan); color: #000; border: none; padding: 10px 20px; border-radius: 8px; cursor: pointer; font-weight: bold; width: 100%;}
-
-/* Fix emergency button position */
-.emergency-override-btn {
-    grid-column: 2;
-    grid-row: 2;
-    position: absolute;
-    bottom: 20px;
-    right: 340px; 
-    height: 120px;
-    width: 160px;
-    z-index: 5;
-    background: #ff2020;
-    color: white;
-    border: none;
-    font-size: 20px;
-    font-weight: 800;
-    border-radius: 12px;
-    cursor: pointer;
-    box-shadow: 0 0 20px rgba(255, 32, 32, 0.5);
-}
