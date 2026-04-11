@@ -22,7 +22,7 @@ const CONFIG = {
     ALARM_DELAY_MS: 2000,
 
     // SMS Configuration (Securely handled via Vercel Proxy)
-    SMS_RECIPIENT: "+917780643862",
+    SMS_RECIPIENTS: ["+917780643862"],
     SMS_COOLDOWN_MS: 60000, // 60 seconds between SMS
 
     // MediaPipe Eye Landmark Indices (from 468 landmarks)
@@ -290,7 +290,7 @@ async function sendSmsAlert() {
                 'Content-Type': 'application/json'
             },
             body: JSON.stringify({
-                recipients: [CONFIG.SMS_RECIPIENT],
+                recipients: CONFIG.SMS_RECIPIENTS,
                 message: alertMessage,
                 location: location
             })
@@ -306,23 +306,25 @@ async function sendSmsAlert() {
         console.error('[SMS] Error:', error);
     }
 
-    // Also send WhatsApp alert
-    try {
-        fetch('http://localhost:3000/api/alert/whatsapp', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-                number: CONFIG.SMS_RECIPIENT,
-                message: alertMessage
-            })
-        }).then(res => res.json()).then(data => {
-            console.log("[WhatsApp] API response:", data);
-        }).catch(e => console.error("[WhatsApp] Dispatch failed:", e));
-    } catch (w_error) {
-        console.error('[WhatsApp] API Error:', w_error);
-    }
+    // Also send WhatsApp alert to all recipients
+    CONFIG.SMS_RECIPIENTS.forEach(recipient => {
+        try {
+            fetch('http://localhost:3000/api/alert/whatsapp', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    number: recipient,
+                    message: alertMessage
+                })
+            }).then(res => res.json()).then(data => {
+                console.log(`[WhatsApp] API response for ${recipient}:`, data);
+            }).catch(e => console.error(`[WhatsApp] Dispatch failed for ${recipient}:`, e));
+        } catch (w_error) {
+            console.error(`[WhatsApp] API Error for ${recipient}:`, w_error);
+        }
+    });
 }
 
 /**
@@ -670,12 +672,12 @@ const smsRecipientInput = document.getElementById('smsRecipient');
 const saveSettingsBtn = document.getElementById('saveSettings');
 const settingsStatus = document.getElementById('settingsStatus');
 
-// Load saved recipient number on startup
+// Load saved recipient numbers on startup
 function loadSavedSettings() {
-    const savedRecipient = localStorage.getItem('wakeguard_sms_recipient');
-    if (savedRecipient) {
-        CONFIG.SMS_RECIPIENT = savedRecipient;
-        console.log('[SETTINGS] Loaded saved SMS recipient');
+    const savedRecipients = localStorage.getItem('wakeguard_sms_recipients');
+    if (savedRecipients) {
+        CONFIG.SMS_RECIPIENTS = savedRecipients.split(',').map(s => s.trim());
+        console.log('[SETTINGS] Loaded saved SMS recipients');
     }
 }
 
@@ -701,7 +703,7 @@ document.addEventListener('keydown', (e) => {
 // Open settings modal
 function openSettings() {
     settingsModal.classList.add('active');
-    smsRecipientInput.value = CONFIG.SMS_RECIPIENT;
+    smsRecipientInput.value = CONFIG.SMS_RECIPIENTS.join(', ');
     settingsStatus.className = 'settings-status';
     settingsStatus.textContent = '';
     console.log('[SETTINGS] Secret panel opened');
@@ -731,26 +733,30 @@ document.addEventListener('keydown', (e) => {
 
 // Save settings
 saveSettingsBtn.addEventListener('click', () => {
-    const newRecipient = smsRecipientInput.value.trim();
+    const inputVal = smsRecipientInput.value.trim();
 
-    // Validate phone number (basic check)
-    if (!newRecipient || newRecipient.length < 10) {
+    if (!inputVal) {
         settingsStatus.className = 'settings-status error';
-        settingsStatus.textContent = '❌ Please enter a valid phone number';
+        settingsStatus.textContent = '❌ Please enter at least one valid phone number';
         return;
     }
 
-    // Add + prefix if missing
-    const formattedNumber = newRecipient.startsWith('+') ? newRecipient : '+' + newRecipient;
+    // Split by comma, trim whitespace
+    let recipientsArray = inputVal.split(',').map(s => s.trim()).filter(Boolean);
+
+    // Basic format fixing (+ prefix)
+    recipientsArray = recipientsArray.map(num => {
+        return num.startsWith('+') ? num : '+' + num;
+    });
 
     // Save to config and localStorage
-    CONFIG.SMS_RECIPIENT = formattedNumber;
-    localStorage.setItem('wakeguard_sms_recipient', formattedNumber);
+    CONFIG.SMS_RECIPIENTS = recipientsArray;
+    localStorage.setItem('wakeguard_sms_recipients', recipientsArray.join(','));
 
     settingsStatus.className = 'settings-status success';
-    settingsStatus.textContent = '✅ Settings saved! SMS alerts will be sent to: ' + formattedNumber;
+    settingsStatus.textContent = '✅ Settings saved! Monitoring ' + recipientsArray.length + ' contacts.';
 
-    console.log('[SETTINGS] SMS recipient updated to:', formattedNumber);
+    console.log('[SETTINGS] SMS recipients updated to:', recipientsArray);
 
     // Auto close after 2 seconds
     setTimeout(() => {
