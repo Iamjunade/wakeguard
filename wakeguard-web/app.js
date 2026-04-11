@@ -18,9 +18,8 @@ const CONFIG = {
     // MAR threshold - mouth considered "yawning" above this value
     MAR_THRESHOLD: 0.50,
 
-    // Consecutive frames with closed eyes to trigger alarm
-    // At ~10-15 FPS (browser), 20 frames ≈ 2 seconds
-    CONSEC_FRAMES_THRESHOLD: 20,
+    // Alarm trigger delay in milliseconds (2 seconds)
+    ALARM_DELAY_MS: 2000,
 
     // SMS Configuration (Securely handled via Vercel Proxy)
     SMS_RECIPIENT: "+917780643862",
@@ -43,6 +42,8 @@ let isRunning = false;
 let frameCounter = 0;
 let closedEyeCounter = 0;
 let yawnCounter = 0;
+let eyeCloseStartTime = 0;
+let yawnStartTime = 0;
 let alarmOn = false;
 let lastSmsTime = 0;
 let fpsCounter = 0;
@@ -451,36 +452,47 @@ function onResults(results) {
 
         // Eye detection logic
         if (avgEAR < CONFIG.EAR_THRESHOLD) {
-            if(closedEyeCounter === 0) addLogEvent("Fatigue Index: drowsiness detected", "warning");
+            if(closedEyeCounter === 0) {
+                addLogEvent("Fatigue Index: drowsiness detected", "warning");
+                eyeCloseStartTime = now;
+            }
             closedEyeCounter++;
             earValueElement.classList.add('warning');
         } else {
             if(closedEyeCounter > 0) addLogEvent("Fatigue Index: driver alert", "normal");
             closedEyeCounter = 0;
+            eyeCloseStartTime = 0;
             earValueElement.classList.remove('warning');
         }
 
         // Yawn detection logic
         if (mar > CONFIG.MAR_THRESHOLD) {
-            if(yawnCounter === 0) addLogEvent("Fatigue Index: yawning detected", "warning");
+            if(yawnCounter === 0) {
+                addLogEvent("Fatigue Index: yawning detected", "warning");
+                yawnStartTime = now;
+            }
             yawnCounter++;
             if(marValueElement) marValueElement.classList.add('warning');
         } else {
             yawnCounter = 0;
+            yawnStartTime = 0;
             if(marValueElement) marValueElement.classList.remove('warning');
         }
 
         // Alarm triggering
-        if (closedEyeCounter >= CONFIG.CONSEC_FRAMES_THRESHOLD) {
-            triggerAlarm('DROWSINESS DETECTED!');
-            if(closedEyeCounter === CONFIG.CONSEC_FRAMES_THRESHOLD) {
+        let eyeTimeElapsed = (eyeCloseStartTime > 0) ? (now - eyeCloseStartTime) : 0;
+        let yawnTimeElapsed = (yawnStartTime > 0) ? (now - yawnStartTime) : 0;
+
+        if (eyeTimeElapsed >= CONFIG.ALARM_DELAY_MS) {
+            if(!alarmOn) { // Only log once when alarm goes off
                 addLogEvent("Event log: ALARM TRIGGERED (SLEEPING)", "alert");
             }
-        } else if (yawnCounter >= CONFIG.CONSEC_FRAMES_THRESHOLD) {
-            triggerAlarm('YAWNING DETECTED!');
-            if (yawnCounter === CONFIG.CONSEC_FRAMES_THRESHOLD) {
+            triggerAlarm('DROWSINESS DETECTED!');
+        } else if (yawnTimeElapsed >= CONFIG.ALARM_DELAY_MS) {
+            if(!alarmOn) {
                 addLogEvent("Event log: ALARM TRIGGERED (YAWNING)", "alert");
             }
+            triggerAlarm('YAWNING DETECTED!');
         } else {
             stopAlarm();
         }
