@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Advanced Driver Monitoring Command Center</title>
+    <title>AI DROWSINESS DETECTION SYSTEM</title>
     <link rel="stylesheet" href="style.css">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -19,7 +19,7 @@
                 <span class="status-icon gauge-icon"></span>
                 <span>Global LAT: 37.7749, LON: -122.4194</span>
             </div>
-            <h1 class="dashboard-title">Advanced Driver Monitoring Command Center</h1>
+            <h1 class="dashboard-title">AI DROWSINESS DETECTION SYSTEM</h1>
             <div class="user-profile">
                 <span class="user-status-dot active"></span>
                 <span>Driver: John Doe</span>
@@ -133,7 +133,7 @@
                         </div>
                         <div class="toggle-item">
                             <span>Instant Alerts</span>
-                            <label class="switch"><input type="checkbox" checked><span class="slider round"></span></label>
+                            <label class="switch"><input id="instantAlertsToggle" type="checkbox" checked><span class="slider round"></span></label>
                         </div>
                         <div class="toggle-item">
                             <span>SMS Notification</span>
@@ -144,9 +144,9 @@
                         <div class="slider-item">
                             <div class="slider-header flex-between">
                                 <span>EAR Score</span>
-                                <span class="slider-value cyan-text">45%</span>
+                                <span class="slider-value cyan-text" id="earSliderValue">45%</span>
                             </div>
-                            <input type="range" min="0" max="100" value="45" class="range-slider primary">
+                            <input id="earScoreSlider" type="range" min="0" max="100" value="45" class="range-slider primary">
                         </div>
                         <div class="slider-item">
                             <div class="slider-header flex-between">

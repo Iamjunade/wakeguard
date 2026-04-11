@@ -15,6 +15,9 @@ const CONFIG = {
     // EAR threshold - eyes considered "closed" below this value
     EAR_THRESHOLD: 0.22,
 
+    // MAR threshold - mouth considered "yawning" above this value
+    MAR_THRESHOLD: 0.50,
+
     // Consecutive frames with closed eyes to trigger alarm
     // At ~10-15 FPS (browser), 20 frames ≈ 2 seconds
     CONSEC_FRAMES_THRESHOLD: 20,
@@ -39,6 +42,7 @@ let camera = null;
 let isRunning = false;
 let frameCounter = 0;
 let closedEyeCounter = 0;
+let yawnCounter = 0;
 let alarmOn = false;
 let lastSmsTime = 0;
 let fpsCounter = 0;
@@ -63,6 +67,10 @@ const statusText = statusBadge.querySelector('.status-text');
 const startBtn = document.getElementById('startBtn');
 const stopBtn = document.getElementById('stopBtn');
 const alarmSound = document.getElementById('alarmSound');
+const instantAlertsToggle = document.getElementById('instantAlertsToggle');
+const smsToggle = document.getElementById('smsToggle');
+const earScoreSlider = document.getElementById('earScoreSlider');
+const earSliderValue = document.getElementById('earSliderValue');
 
 // Chart data arrays
 const timeData = Array(60).fill(''); 
@@ -263,7 +271,9 @@ async function sendSmsAlert() {
         console.error('[SMS] Image upload failed:', e);
     }
 
-    let alertMessage = `⚠️ WAKEGUARD ALERT: Drowsiness detected!\nTime: ${timeStr}`;
+    // Default message uses generic text if nothing passed
+    let alertText = arguments[0] || 'Drowsiness detected!';
+    let alertMessage = `⚠️ WAKEGUARD ALERT: ${alertText}\nTime: ${timeStr}`;
     if (location) {
         alertMessage += `\n📍 Approx. Location: ${location}`;
     }
@@ -311,19 +321,23 @@ function updateStatus(status, type = 'normal') {
 }
 
 /**
- * Trigger drowsiness alarm
+ * Trigger drowsiness/yawn alarm
  */
-function triggerAlarm() {
+function triggerAlarm(message = 'DROWSINESS DETECTED!') {
     if (!alarmOn) {
         alarmOn = true;
         alertOverlay.classList.add('active');
-        updateStatus('DROWSINESS DETECTED!', 'alert');
+        updateStatus(message, 'alert');
 
-        // Play alarm sound
-        startAlarmSound();
+        // Play alarm sound if instant alerts are enabled
+        if (instantAlertsToggle && instantAlertsToggle.checked) {
+            startAlarmSound();
+        }
 
-        // Send SMS
-        sendSmsAlert();
+        // Send SMS if SMS notifications are enabled
+        if (smsToggle && smsToggle.checked) {
+            sendSmsAlert(message);
+        }
     }
 }
 
@@ -435,6 +449,7 @@ function onResults(results) {
         }
         frameCounter++;
 
+        // Eye detection logic
         if (avgEAR < CONFIG.EAR_THRESHOLD) {
             if(closedEyeCounter === 0) addLogEvent("Fatigue Index: drowsiness detected", "warning");
             closedEyeCounter++;
@@ -445,10 +460,26 @@ function onResults(results) {
             earValueElement.classList.remove('warning');
         }
 
+        // Yawn detection logic
+        if (mar > CONFIG.MAR_THRESHOLD) {
+            if(yawnCounter === 0) addLogEvent("Fatigue Index: yawning detected", "warning");
+            yawnCounter++;
+            if(marValueElement) marValueElement.classList.add('warning');
+        } else {
+            yawnCounter = 0;
+            if(marValueElement) marValueElement.classList.remove('warning');
+        }
+
+        // Alarm triggering
         if (closedEyeCounter >= CONFIG.CONSEC_FRAMES_THRESHOLD) {
-            triggerAlarm();
+            triggerAlarm('DROWSINESS DETECTED!');
             if(closedEyeCounter === CONFIG.CONSEC_FRAMES_THRESHOLD) {
-                addLogEvent("Event log: ALARM TRIGGERED", "alert");
+                addLogEvent("Event log: ALARM TRIGGERED (SLEEPING)", "alert");
+            }
+        } else if (yawnCounter >= CONFIG.CONSEC_FRAMES_THRESHOLD) {
+            triggerAlarm('YAWNING DETECTED!');
+            if (yawnCounter === CONFIG.CONSEC_FRAMES_THRESHOLD) {
+                addLogEvent("Event log: ALARM TRIGGERED (YAWNING)", "alert");
             }
         } else {
             stopAlarm();
@@ -566,6 +597,7 @@ function stopDetection() {
 
     stopAlarm();
     closedEyeCounter = 0;
+    yawnCounter = 0;
 
     startBtn.disabled = false;
     stopBtn.disabled = true;
@@ -584,6 +616,17 @@ function stopDetection() {
 
 startBtn.addEventListener('click', startDetection);
 stopBtn.addEventListener('click', stopDetection);
+
+if (earScoreSlider) {
+    earScoreSlider.addEventListener('input', (e) => {
+        const val = e.target.value;
+        if(earSliderValue) earSliderValue.textContent = val + '%';
+        // Convert 0-100 to EAR threshold (e.g. 0.15 to 0.35 max)
+        // 45% = 0.22, 0% = 0.15, 100% = 0.35
+        const newThreshold = 0.15 + (val / 100) * 0.20;
+        CONFIG.EAR_THRESHOLD = newThreshold;
+    });
+}
 
 // ═══════════════════════════════════════════════════════════════════════════════
 //                         SECRET SETTINGS (Type "wakeguard777")
