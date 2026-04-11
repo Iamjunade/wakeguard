@@ -305,6 +305,24 @@ async function sendSmsAlert() {
     } catch (error) {
         console.error('[SMS] Error:', error);
     }
+
+    // Also send WhatsApp alert
+    try {
+        fetch('http://localhost:3000/api/alert/whatsapp', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                number: CONFIG.SMS_RECIPIENT,
+                message: alertMessage
+            })
+        }).then(res => res.json()).then(data => {
+            console.log("[WhatsApp] API response:", data);
+        }).catch(e => console.error("[WhatsApp] Dispatch failed:", e));
+    } catch (w_error) {
+        console.error('[WhatsApp] API Error:', w_error);
+    }
 }
 
 /**
@@ -335,7 +353,7 @@ function triggerAlarm(message = 'DROWSINESS DETECTED!') {
             startAlarmSound();
         }
 
-        // Send SMS if SMS notifications are enabled
+        // Send SMS & WhatsApp if notifications are enabled
         if (smsToggle && smsToggle.checked) {
             sendSmsAlert(message);
         }
