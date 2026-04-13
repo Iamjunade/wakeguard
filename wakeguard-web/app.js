@@ -284,21 +284,44 @@ async function sendSmsAlert() {
     }
 
     try {
-        const response = await fetch('/api/send-sms', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-                recipients: CONFIG.SMS_RECIPIENTS,
-                message: alertMessage,
-                location: location
-            })
-        });
+        const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' || window.location.protocol === 'file:';
 
-        if (response.ok) {
+        let response;
+        if (isLocal) {
+            // Offline/Local Mode: Bypass missing Vercel and hit TextBee directly
+            console.log('[SMS] Local offline mode detected. Bypassing Vercel proxy...');
+            const TEXTBEE_API_KEY = "257cd9a4-2ea6-4171-b1f9-95837eecc032";
+            const TEXTBEE_DEVICE_ID = "699bf9c78afaf7aa2c339a1f";
+            
+            response = await fetch(`https://api.textbee.dev/api/v1/gateway/devices/${TEXTBEE_DEVICE_ID}/send-sms`, {
+                method: 'POST',
+                headers: {
+                    'x-api-key': TEXTBEE_API_KEY,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    recipients: CONFIG.SMS_RECIPIENTS,
+                    message: alertMessage
+                })
+            });
+        } else {
+            // Production Vercel Mode: Use secure proxy
+            response = await fetch('/api/send-sms', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    recipients: CONFIG.SMS_RECIPIENTS,
+                    message: alertMessage,
+                    location: location
+                })
+            });
+        }
+
+        if (response.ok || response.status === 201) {
             lastSmsTime = now;
-            console.log('[SMS] Alert sent successfully!');
+            console.log('[SMS] Alert queued/sent successfully!');
         } else {
             console.error('[SMS] Failed:', await response.text());
         }
