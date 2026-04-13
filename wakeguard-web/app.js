@@ -242,18 +242,29 @@ async function sendSmsAlert(customMessage) {
     const timeOptions = { hour: 'numeric', minute: 'numeric', hour12: true, year: 'numeric', month: '2-digit', day: '2-digit' };
     const timeStr = checkDate.toLocaleString('en-US', timeOptions);
 
-    // Capture high-quality frame for WhatsApp
+    // Capture high-quality composite frame (Face + AI Mesh) for WhatsApp
     let base64Image = null;
     try {
-        if (canvasElement) {
-            // quality 0.9 for "Good Quality" as requested
-            const dataUrl = canvasElement.toDataURL('image/jpeg', 0.9);
-            // WhatsApp server expects raw base64, so remove the prefix
+        if (webcamElement && canvasElement) {
+            // Create a temporary offscreen canvas for the composite image
+            const offscreen = document.createElement('canvas');
+            offscreen.width = webcamElement.videoWidth;
+            offscreen.height = webcamElement.videoHeight;
+            const ctx = offscreen.getContext('2d');
+            
+            // 1. Draw the live camera feed
+            ctx.drawImage(webcamElement, 0, 0, offscreen.width, offscreen.height);
+            
+            // 2. Draw the AI landmark mesh overlay on top
+            ctx.drawImage(canvasElement, 0, 0, offscreen.width, offscreen.height);
+            
+            // 3. Export as high-quality JPEG
+            const dataUrl = offscreen.toDataURL('image/jpeg', 0.9);
             base64Image = dataUrl.split(',')[1];
-            console.log('[ALERT] High-quality frame captured for WhatsApp');
+            console.log('[ALERT] High-quality composite frame captured for WhatsApp');
         }
     } catch (e) {
-        console.error('[ALERT] Image capture failed:', e);
+        console.error('[ALERT] Composite image capture failed:', e);
     }
 
     // [Fallback/SMS] Image upload to Catbox for SMS link (may fail due to CORS)
