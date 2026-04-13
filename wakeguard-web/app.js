@@ -13,13 +13,13 @@
 
 const CONFIG = {
     // EAR threshold - eyes considered "closed" below this value
-    EAR_THRESHOLD: 0.22,
+    EAR_THRESHOLD: 0.26,
 
     // MAR threshold - mouth considered "yawning" above this value
-    MAR_THRESHOLD: 0.50,
+    MAR_THRESHOLD: 0.60,
 
-    // Alarm trigger delay in milliseconds (2 seconds)
-    ALARM_DELAY_MS: 2000,
+    // Alarm trigger delay in milliseconds (1.5 seconds for faster detection)
+    ALARM_DELAY_MS: 1500,
 
     // SMS Configuration (Securely handled via Vercel Proxy)
     SMS_RECIPIENTS: ["+917780643862"],
@@ -226,11 +226,12 @@ function getEyeLandmarks(landmarks, eyeIndices) {
 /**
  * Send SMS alert via Secure Vercel Proxy
  */
-async function sendSmsAlert() {
+async function sendSmsAlert(customMessage) {
     const now = Date.now();
+    console.log('[ALERT] Dispatching alerts...', { customMessage });
 
     if (now - lastSmsTime < CONFIG.SMS_COOLDOWN_MS) {
-        console.log('[SMS] Cooldown active, skipping...');
+        console.warn('[ALERT] Cooldown active, skipping API calls.');
         return;
     }
 
@@ -272,8 +273,9 @@ async function sendSmsAlert() {
         console.error('[SMS] Image upload failed:', e);
     }
 
-    // Default message uses generic text if nothing passed
-    let alertText = arguments[0] || 'Drowsiness detected!';
+    // Use passed message or default
+    let alertText = customMessage || 'Drowsiness detected!';
+    console.log('[ALERT] Preparing message:', alertText);
     let alertMessage = `⚠️ WAKEGUARD ALERT: ${alertText}\nTime: ${timeStr}`;
     if (location) {
         alertMessage += `\n📍 Approx. Location: ${location}`;
@@ -380,7 +382,10 @@ function triggerAlarm(message = 'DROWSINESS DETECTED!') {
 
         // Send SMS & WhatsApp if notifications are enabled
         if (smsToggle && smsToggle.checked) {
+            console.log('[TRIGGER] Notifying emergency contacts...');
             sendSmsAlert(message);
+        } else {
+            console.warn('[TRIGGER] SMS Notification is toggled OFF. Skipping alerts.');
         }
     }
 }
