@@ -31,15 +31,16 @@ import datetime
 
 # EAR threshold - if EAR drops below this value, eyes are considered "closed"
 # Typical values: 0.20-0.30 (adjust based on individual eye shape)
-EYE_ASPECT_RATIO_THRESHOLD = 0.25
+EYE_ASPECT_RATIO_THRESHOLD = 0.26  # Slightly more sensitive for faster detection
 
-# Number of consecutive frames eyes must be closed to trigger alarm
-# At ~20 FPS, 48 frames ≈ 2-3 seconds of closed eyes
-EYE_ASPECT_RATIO_CONSEC_FRAMES = 48
+# Time threshold eyes must be closed to trigger alarm (in seconds)
+# Changed to time-based for accuracy regardless of FPS (previously 48 frames)
+EYE_CLOSED_SECONDS_THRESHOLD = 1.5
 
-# Yawn detection threshold (optional feature)
+# Yawn detection threshold
 MOUTH_ASPECT_RATIO_THRESHOLD = 0.6
-YAWN_CONSEC_FRAMES = 20
+# Time threshold mouth must be open to trigger yawn alarm (in seconds)
+YAWN_SECONDS_THRESHOLD = 2.0
 
 # Display settings
 WINDOW_WIDTH = 700
@@ -317,8 +318,8 @@ def main():
     print("[INFO] Press 'q' to quit\n")
     
     # State variables
-    COUNTER = 0         # Consecutive frames with closed eyes
-    YAWN_COUNTER = 0    # Consecutive frames with open mouth (yawn)
+    eyes_closed_start_time = None
+    yawn_start_time = None
     ALARM_ON = False
     YAWN_ALARM_ON = False
     
@@ -452,13 +453,24 @@ def main():
                     
                     # Check EAR for drowsiness
                     if ear < EYE_ASPECT_RATIO_THRESHOLD:
-                        COUNTER += 1
+                        if eyes_closed_start_time is None:
+                            eyes_closed_start_time = time.time()
                     else:
-                        COUNTER = 0
+                        eyes_closed_start_time = None
+                    
+                    # Check MAR for yawning
+                    if mar > MOUTH_ASPECT_RATIO_THRESHOLD:
+                        if yawn_start_time is None:
+                            yawn_start_time = time.time()
+                    else:
+                        yawn_start_time = None
                     
                     # Display metrics
                     ear_color = COLOR_GREEN if ear >= EYE_ASPECT_RATIO_THRESHOLD else COLOR_RED
                     cv2.putText(frame, f"EAR: {ear:.3f}", (10, 28), cv2.FONT_HERSHEY_SIMPLEX, 0.6, ear_color, 2)
+                    
+                    mar_color = COLOR_GREEN if mar <= MOUTH_ASPECT_RATIO_THRESHOLD else COLOR_RED
+                    cv2.putText(frame, f"MAR: {mar:.3f}", (10, 58), cv2.FONT_HERSHEY_SIMPLEX, 0.6, mar_color, 2)
                     
                 except RuntimeError as e:
                     # Fallback to OpenCV Eye Detection if dlib fails
@@ -474,23 +486,30 @@ def main():
                     # HEURISTIC: If NO eyes detected, assume closed? (Very rough)
                     # Or fewer than 1 eye
                     if len(eyes) < 1:
-                        COUNTER += 1
+                        if eyes_closed_start_time is None:
+                            eyes_closed_start_time = time.time()
                         cv2.putText(frame, "Eyes: 0 (Closed?)", (10, 28), cv2.FONT_HERSHEY_SIMPLEX, 0.6, COLOR_RED, 2)
                     else:
-                        COUNTER = 0
+                        eyes_closed_start_time = None
                         cv2.putText(frame, f"Eyes: {len(eyes)}", (10, 28), cv2.FONT_HERSHEY_SIMPLEX, 0.6, COLOR_GREEN, 2)
 
+                # Evaluate time-based triggers
+                is_drowsy = eyes_closed_start_time is not None and (time.time() - eyes_closed_start_time) >= EYE_CLOSED_SECONDS_THRESHOLD
+                is_yawning = yawn_start_time is not None and (time.time() - yawn_start_time) >= YAWN_SECONDS_THRESHOLD
+
                 # TRIGGER ALARM (Shared logic)
-                if COUNTER >= EYE_ASPECT_RATIO_CONSEC_FRAMES:
+                if is_drowsy or is_yawning:
                     if not ALARM_ON:
                         ALARM_ON = True
                         if audio_enabled:
                             pygame.mixer.music.play(-1)
-                        # Send SMS Alert
+                        # Send SMS Alert only when transitioning to alarm
                         send_sms_alert(frame)
                     
                     cv2.rectangle(frame, (0, 40), (W, H), COLOR_RED, 4)
-                    cv2.putText(frame, "!!! DROWSINESS ALERT !!!", 
+                    
+                    alert_text = "!!! DROWSINESS ALERT !!!" if is_drowsy else "!!! YAWNING ALERT !!!"
+                    cv2.putText(frame, alert_text, 
                                 (W//2 - 150, H//2), cv2.FONT_HERSHEY_SIMPLEX, 1.0, COLOR_RED, 3)
                     cv2.putText(frame, "WAKE UP!", 
                                 (W//2 - 70, H//2 + 40), cv2.FONT_HERSHEY_SIMPLEX, 1.0, COLOR_RED, 3)
