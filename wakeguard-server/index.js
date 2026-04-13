@@ -1,11 +1,11 @@
 const express = require('express');
 const cors = require('cors');
-const { Client, LocalAuth } = require('whatsapp-web.js');
+const { Client, LocalAuth, MessageMedia } = require('whatsapp-web.js');
 const qrcode = require('qrcode-terminal');
 
 const app = express();
 app.use(cors());
-app.use(express.json());
+app.use(express.json({ limit: '10mb' }));
 
 const PORT = 3000;
 
@@ -60,7 +60,7 @@ app.post('/api/alert/whatsapp', async (req, res) => {
             return res.status(503).json({ error: 'WhatsApp client is not ready yet. Please ensure you have scanned the QR code.' });
         }
 
-        const { number, message } = req.body;
+        const { number, message, image } = req.body;
         
         if (!number || !message) {
             return res.status(400).json({ error: 'Number and message are required in the request body.' });
@@ -68,16 +68,33 @@ app.post('/api/alert/whatsapp', async (req, res) => {
 
         // Clean up number and append @c.us suffix
         const sanitizedNumber = number.replace(/[^0-9]/g, '');
-        const chatId = `${sanitizedNumber}@c.us`;
+        const chatId = sanitizedNumber.includes('@') ? sanitizedNumber : `${sanitizedNumber}@c.us`;
 
-        console.log(`[WhatsApp] Sending alert to ${sanitizedNumber}...`);
-        await client.sendMessage(chatId, message);
-        console.log(`[WhatsApp] Alert sent successfully!`);
+        console.log(`[WhatsApp] Attempting alert to: ${chatId}`);
 
-        return res.status(200).json({ success: true, message: 'WhatsApp alert sent successfully!' });
+        // Double check if registered
+        const isRegistered = await client.isRegisteredUser(chatId);
+        if (!isRegistered) {
+            console.warn(`[WhatsApp] Number ${sanitizedNumber} does not appear to be registered on WhatsApp!`);
+            return res.status(400).json({ error: 'Number is not registered on WhatsApp. Please check the prefix (e.g., 91 for India).' });
+        }
+
+        let result;
+        if (image) {
+            console.log(`[WhatsApp] Image data detected. Preparing media message...`);
+            // The image should be raw base64 data without the "data:image/jpeg;base64," prefix
+            const media = new MessageMedia('image/jpeg', image);
+            result = await client.sendMessage(chatId, media, { caption: message });
+        } else {
+            console.log(`[WhatsApp] No image. Sending text-only alert...`);
+            result = await client.sendMessage(chatId, message);
+        }
+
+        console.log(`[WhatsApp] Success! Message ID: ${result.id._serialized}`);
+        return res.status(200).json({ success: true, message: 'WhatsApp alert sent successfully!', id: result.id._serialized });
 
     } catch (error) {
-        console.error('[WhatsApp] Error sending message:', error);
+        console.error('[WhatsApp] CRITICAL ERROR:', error);
         return res.status(500).json({ error: 'Failed to send WhatsApp message.', details: error.toString() });
     }
 });

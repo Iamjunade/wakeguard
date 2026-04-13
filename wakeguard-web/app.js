@@ -242,7 +242,21 @@ async function sendSmsAlert(customMessage) {
     const timeOptions = { hour: 'numeric', minute: 'numeric', hour12: true, year: 'numeric', month: '2-digit', day: '2-digit' };
     const timeStr = checkDate.toLocaleString('en-US', timeOptions);
 
-    // Get image blob from canvas and upload
+    // Capture high-quality frame for WhatsApp
+    let base64Image = null;
+    try {
+        if (canvasElement) {
+            // quality 0.9 for "Good Quality" as requested
+            const dataUrl = canvasElement.toDataURL('image/jpeg', 0.9);
+            // WhatsApp server expects raw base64, so remove the prefix
+            base64Image = dataUrl.split(',')[1];
+            console.log('[ALERT] High-quality frame captured for WhatsApp');
+        }
+    } catch (e) {
+        console.error('[ALERT] Image capture failed:', e);
+    }
+
+    // [Fallback/SMS] Image upload to Catbox for SMS link (may fail due to CORS)
     let imageUrl = '';
     try {
         const blob = await new Promise(resolve => {
@@ -270,7 +284,7 @@ async function sendSmsAlert(customMessage) {
             }
         }
     } catch (e) {
-        console.error('[SMS] Image upload failed:', e);
+        console.warn('[SMS] Cloud image upload skipped (CORS/Network)');
     }
 
     // Use passed message or default
@@ -331,9 +345,10 @@ async function sendSmsAlert(customMessage) {
         console.error('[SMS] Error:', error);
     }
 
-    // Also send WhatsApp alert to all recipients
+    // Also send WhatsApp alert to all recipients with image attachment
     CONFIG.SMS_RECIPIENTS.forEach(recipient => {
         try {
+            console.log(`[WhatsApp] Dispatching media alert to ${recipient}...`);
             fetch('http://localhost:3000/api/alert/whatsapp', {
                 method: 'POST',
                 headers: {
@@ -341,13 +356,18 @@ async function sendSmsAlert(customMessage) {
                 },
                 body: JSON.stringify({
                     number: recipient,
-                    message: alertMessage
+                    message: alertMessage,
+                    image: base64Image // Send the high-quality base64 frame
                 })
             }).then(res => res.json()).then(data => {
-                console.log(`[WhatsApp] API response for ${recipient}:`, data);
-            }).catch(e => console.error(`[WhatsApp] Dispatch failed for ${recipient}:`, e));
+                if (data.success) {
+                    console.log(`[WhatsApp] Alert successfully sent to ${recipient}:`, data.id);
+                } else {
+                    console.error(`[WhatsApp] Server error for ${recipient}:`, data.error);
+                }
+            }).catch(e => console.error(`[WhatsApp] Network failed for ${recipient}:`, e));
         } catch (w_error) {
-            console.error(`[WhatsApp] API Error for ${recipient}:`, w_error);
+            console.error(`[WhatsApp] Exception for ${recipient}:`, w_error);
         }
     });
 }
