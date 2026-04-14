@@ -591,8 +591,8 @@ function onResults(results) {
             });
 
             if (phoneDetected) {
-                addLogEntry('DISTRACTION: Phone use detected!', 'danger');
-                if (!alarmOn) triggerAlarm();
+                addLogEvent('DISTRACTION: Phone use detected!', 'alert');
+                if (!alarmOn) triggerAlarm('PHONE USE DETECTED!');
                 fetchAndSpeakAI('distraction');
             }
         });
