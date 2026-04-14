@@ -5,11 +5,7 @@ A real-time drowsiness detection system using webcam, facial landmarks,
 and Eye Aspect Ratio (EAR) analysis to keep drivers safe.
 
 Prerequisites:
-    pip install opencv-python dlib imutils scipy pygame
-
-Required Files:
-    - shape_predictor_68_face_landmarks.dat (facial landmark model)
-    - alarm.wav (alert sound file)
+    pip install opencv-python dlib imutils scipy pygame ultralytics
 """
 
 import cv2
@@ -24,28 +20,25 @@ import sys
 import numpy as np
 import requests
 import datetime
+from ultralytics import YOLO
 
 # ═══════════════════════════════════════════════════════════════════════════════
 #                              CONFIGURATION
 # ═══════════════════════════════════════════════════════════════════════════════
 
 # EAR threshold - if EAR drops below this value, eyes are considered "closed"
-# Typical values: 0.20-0.30 (adjust based on individual eye shape)
-EYE_ASPECT_RATIO_THRESHOLD = 0.26  # Slightly more sensitive for faster detection
+EYE_ASPECT_RATIO_THRESHOLD = 0.26
 
 # Time threshold eyes must be closed to trigger alarm (in seconds)
-# Changed to time-based for accuracy regardless of FPS (previously 48 frames)
 EYE_CLOSED_SECONDS_THRESHOLD = 1.5
 
 # Yawn detection threshold
 MOUTH_ASPECT_RATIO_THRESHOLD = 0.6
-# Time threshold mouth must be open to trigger yawn alarm (in seconds)
 YAWN_SECONDS_THRESHOLD = 2.0
 
 # Display settings
 WINDOW_WIDTH = 700
 DISPLAY_FPS = True
-SHOW_LANDMARKS = False  # Set True to visualize all 68 facial landmarks
 
 # Colors (BGR format)
 COLOR_GREEN = (0, 255, 0)
@@ -54,80 +47,35 @@ COLOR_YELLOW = (0, 255, 255)
 COLOR_WHITE = (255, 255, 255)
 
 # TextBee Configuration for SMS Alerts
-TEXTBEE_API_KEY = "257cd9a4-2ea6-4171-b1f9-95837eecc032"
-TEXTBEE_DEVICE_ID = "699bf9c78afaf7aa2c339a1f"
+TEXT_BEE_API_KEY = "257cd9a4-2ea6-4171-b1f9-95837eecc032"
+TEXT_BEE_DEVICE_ID = "699bf9c78afaf7aa2c339a1f"
 SMS_RECIPIENT_NUMBER = "+917780643862"
-SMS_COOLDOWN_SECONDS = 60  # Minimum time between SMS alerts to avoid spam
-
+SMS_COOLDOWN_SECONDS = 60
 
 # ═══════════════════════════════════════════════════════════════════════════════
 #                          ASPECT RATIO FUNCTIONS
 # ═══════════════════════════════════════════════════════════════════════════════
 
 def eye_aspect_ratio(eye):
-    """
-    Calculate the Eye Aspect Ratio (EAR).
-    
-    The EAR is calculated using the formula:
-    EAR = (||p2-p6|| + ||p3-p5||) / (2 * ||p1-p4||)
-    
-    Where p1-p6 are the 6 landmark points around the eye.
-    
-    Args:
-        eye: numpy array of 6 (x, y) coordinates representing eye landmarks
-        
-    Returns:
-        float: The eye aspect ratio value
-    """
-    # Compute euclidean distances between vertical eye landmarks
-    A = dist.euclidean(eye[1], eye[5])  # p2 to p6
-    B = dist.euclidean(eye[2], eye[4])  # p3 to p5
-
-    # Compute euclidean distance between horizontal eye landmarks
-    C = dist.euclidean(eye[0], eye[3])  # p1 to p4
-
-    # Calculate and return EAR
-    ear = (A + B) / (2.0 * C)
-    return ear
-
+    A = dist.euclidean(eye[1], eye[5])
+    B = dist.euclidean(eye[2], eye[4])
+    C = dist.euclidean(eye[0], eye[3])
+    return (A + B) / (2.0 * C)
 
 def mouth_aspect_ratio(mouth):
-    """
-    Calculate the Mouth Aspect Ratio (MAR) for yawn detection.
-    
-    Args:
-        mouth: numpy array of mouth landmark coordinates
-        
-    Returns:
-        float: The mouth aspect ratio value
-    """
-    # Vertical mouth landmarks
-    A = dist.euclidean(mouth[2], mouth[10])  # 51, 59
-    B = dist.euclidean(mouth[4], mouth[8])   # 53, 57
-    
-    # Horizontal mouth landmark
-    C = dist.euclidean(mouth[0], mouth[6])   # 49, 55
-    
-    mar = (A + B) / (2.0 * C)
-    return mar
-
+    A = dist.euclidean(mouth[2], mouth[10])
+    B = dist.euclidean(mouth[4], mouth[8])
+    C = dist.euclidean(mouth[0], mouth[6])
+    return (A + B) / (2.0 * C)
 
 # ═══════════════════════════════════════════════════════════════════════════════
 #                            SMS ALERT FUNCTION
 # ═══════════════════════════════════════════════════════════════════════════════
 
-# Track last SMS sent time to implement cooldown
 last_sms_time = 0
 
 def get_ip_location():
-    """
-    Get approximate location using IP-based service.
-    
-    Returns:
-        str: Google Maps URL or None if fails
-    """
     try:
-        # Use ipapi.co for free IP-based location (no key required for low volume)
         response = requests.get("https://ipapi.co/json/", timeout=5)
         if response.status_code == 200:
             data = response.json()
@@ -135,439 +83,196 @@ def get_ip_location():
             lon = data.get("longitude")
             if lat and lon:
                 return f"https://www.google.com/maps?q={lat},{lon}"
-    except Exception as e:
-        print(f"[GPS] Error getting IP location: {e}")
+    except Exception:
+        pass
     return None
 
 def send_sms_alert(frame=None):
-    """
-    Send an SMS alert via TextBee API when drowsiness is detected.
-    Includes cooldown to prevent spam.
-    """
     global last_sms_time
-    
     current_time = time.time()
     
-    # Check cooldown
     if current_time - last_sms_time < SMS_COOLDOWN_SECONDS:
         return False
         
     location = get_ip_location()
     now_str = datetime.datetime.now().strftime("%Y-%m-%d %I:%M %p")
     
-    message = (
-        f"⚠️ WAKEGUARD ALERT: Drowsiness detected!\n"
-        f"Time: {now_str}\n"
-    )
+    message = f"⚠️ WAKEGUARD ALERT: Driver attention required!\nTime: {now_str}\n"
     if location:
-        message += f"📍 Approx. Location: {location}\n"
+        message += f"📍 Location: {location}\n"
         
-    message += "Please take a break and rest. - Team META MINDS"
-    
     if frame is not None:
         cv2.imwrite("alert_frame.jpg", frame)
         try:
             with open("alert_frame.jpg", "rb") as f:
                 r = requests.post("https://catbox.moe/user/api.php", 
-                                  data={"reqtype": "fileupload"}, 
-                                  files={"fileToUpload": f},
-                                  timeout=10)
+                                  data={"reqtype": "fileupload"}, files={"fileToUpload": f}, timeout=10)
             if r.status_code == 200 and r.text.startswith("http"):
                 message += f"\n📷 Evidence: {r.text.strip()}"
-                print(f"[SMS] Frame uploaded successfully: {r.text.strip()}")
-        except Exception as e:
-            print(f"[SMS] Failed to upload frame: {e}")
+        except Exception:
+            pass
             
     try:
-        url = f"https://api.textbee.dev/api/v1/gateway/devices/{TEXTBEE_DEVICE_ID}/send-sms"
-        headers = {
-            "x-api-key": TEXTBEE_API_KEY,
-            "Content-Type": "application/json"
-        }
-        
-        payload = {
-            "recipients": [SMS_RECIPIENT_NUMBER],
-            "message": message
-        }
-        
+        url = f"https://api.textbee.dev/api/v1/gateway/devices/{TEXT_BEE_DEVICE_ID}/send-sms"
+        headers = {"x-api-key": TEXT_BEE_API_KEY, "Content-Type": "application/json"}
+        payload = {"recipients": [SMS_RECIPIENT_NUMBER], "message": message}
         response = requests.post(url, json=payload, headers=headers, timeout=5)
-        
         if response.status_code == 200:
             last_sms_time = current_time
-            print("[SMS] Alert sent successfully!")
             return True
-        else:
-            print(f"[SMS] Failed to send: {response.status_code} - {response.text}")
-            return False
-            
-    except Exception as e:
-        print(f"[SMS] Error sending alert: {e}")
-        return False
-
+    except Exception:
+        pass
+    return False
 
 # ═══════════════════════════════════════════════════════════════════════════════
 #                            INITIALIZATION
 # ═══════════════════════════════════════════════════════════════════════════════
 
 def initialize_audio():
-    """Initialize pygame mixer and load alarm sound."""
     pygame.mixer.init()
-    
-    # Check for alarm sound file
     alarm_path = os.path.join(os.path.dirname(__file__), "alarm.wav")
-    
     if os.path.exists(alarm_path):
         pygame.mixer.music.load(alarm_path)
-        print("[INFO] Alarm sound loaded successfully")
         return True
-    else:
-        print("[WARNING] alarm.wav not found! Audio alert will be disabled.")
-        print(f"[WARNING] Expected location: {alarm_path}")
-        return False
-
+    return False
 
 def initialize_detector():
-    """Initialize OpenCV face detector and dlib facial landmark predictor."""
-    print("[INFO] Loading face detector and landmark predictor...")
-    
-    # Initialize OpenCV's Haar Cascade face detector (more reliable than dlib on some systems)
     cascade_path = cv2.data.haarcascades + "haarcascade_frontalface_default.xml"
-    face_cascade = cv2.CascadeClassifier(cascade_path)
-    
-    # Initialize Eye Cascade for fallback
     eye_cascade_path = cv2.data.haarcascades + "haarcascade_eye_tree_eyeglasses.xml"
+    face_cascade = cv2.CascadeClassifier(cascade_path)
     eye_cascade = cv2.CascadeClassifier(eye_cascade_path)
     
-    if face_cascade.empty() or eye_cascade.empty():
-        print("[ERROR] Could not load Haar cascade classifiers!")
-        sys.exit(1)
-    
-    print("[INFO] OpenCV detectors loaded successfully")
-    
-    # Check for dlib landmark predictor file
-    predictor_path = os.path.join(
-        os.path.dirname(__file__), 
-        "shape_predictor_68_face_landmarks.dat"
-    )
-    
-    if not os.path.exists(predictor_path):
-        print("\n" + "="*70)
-        print("ERROR: shape_predictor_68_face_landmarks.dat not found!")
-        print("="*70)
-        print("\nTo download:")
-        print("1. Visit: http://dlib.net/files/shape_predictor_68_face_landmarks.dat.bz2")
-        print("2. Extract the .dat file")
-        print("3. Place it in:", os.path.dirname(__file__))
-        print("="*70 + "\n")
-        sys.exit(1)
+    predictor_path = os.path.join(os.path.dirname(__file__), "shape_predictor_68_face_landmarks.dat")
+    predictor = dlib.shape_predictor(predictor_path) if os.path.exists(predictor_path) else None
     
     try:
-        predictor = dlib.shape_predictor(predictor_path)
-        print("[INFO] Facial landmark predictor loaded successfully")
-    except Exception as e:
-        print(f"[WARNING] Dlib predictor failed to load: {e}")
-        predictor = None
-    
-    return face_cascade, eye_cascade, predictor
-
+        yolo_model = YOLO('yolov8n.pt')
+    except Exception:
+        yolo_model = None
+        
+    return face_cascade, eye_cascade, predictor, yolo_model
 
 # ═══════════════════════════════════════════════════════════════════════════════
 #                              MAIN PROGRAM
 # ═══════════════════════════════════════════════════════════════════════════════
 
 def main():
-    """Main function to run the drowsiness detection system."""
-    
-    print("\n" + "="*60)
-    print("        WakeGuard - Driver Drowsiness Detection System")
-    print("="*60 + "\n")
-    
-    # Initialize components
+    print("\nWakeGuard - System Starting...")
     audio_enabled = initialize_audio()
-    detector, eye_cascade, predictor = initialize_detector()
+    detector, eye_cascade, predictor, yolo_model = initialize_detector()
     
-    # Get facial landmark indexes for eyes and mouth
-    try:
-        (lStart, lEnd) = face_utils.FACIAL_LANDMARKS_IDXS["left_eye"]
-        (rStart, rEnd) = face_utils.FACIAL_LANDMARKS_IDXS["right_eye"]
-        (mStart, mEnd) = face_utils.FACIAL_LANDMARKS_IDXS["mouth"]
-    except:
-        # Defaults if dlib missing
-        lStart, lEnd = (0,0)
-        rStart, rEnd = (0,0)
-        mStart, mEnd = (0,0)
+    lStart, lEnd = face_utils.FACIAL_LANDMARKS_IDXS["left_eye"]
+    rStart, rEnd = face_utils.FACIAL_LANDMARKS_IDXS["right_eye"]
+    mStart, mEnd = face_utils.FACIAL_LANDMARKS_IDXS["mouth"]
     
-    # Initialize video capture
-    print("[INFO] Starting video stream...")
-    # Use DirectShow backend on Windows for better compatibility
     cap = cv2.VideoCapture(0, cv2.CAP_DSHOW)
-    
-    # Set camera properties for consistent output format
     cap.set(cv2.CAP_PROP_FRAME_WIDTH, 640)
     cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 480)
-    cap.set(cv2.CAP_PROP_FPS, 30)
     
-    if not cap.isOpened():
-        print("[ERROR] Could not open video stream!")
-        print("[INFO] Please check your webcam connection.")
-        sys.exit(1)
-    
-    # Allow camera to warm up
-    time.sleep(1.0)
-    print("[INFO] Video stream started successfully")
-    print("[INFO] Press 'q' to quit\n")
-    
-    # State variables
     eyes_closed_start_time = None
     yawn_start_time = None
     ALARM_ON = False
-    YAWN_ALARM_ON = False
     
-    # FPS calculation
     fps_start_time = time.time()
     fps_counter = 0
     current_fps = 0
     
+    phone_detected = False
+    phone_boxes = []
+    frame_count = 0
+    
     try:
         while True:
-            # Read frame from camera
             ret, frame = cap.read()
+            if not ret or frame is None: break
             
-            if not ret:
-                print("[ERROR] Could not read frame from camera!")
-                break
-            
-            # Ensure frame is valid
-            if frame is None or frame.size == 0:
-                print("[WARNING] Empty frame received, skipping...")
-                continue
-            
-            # Debug: Print frame info on first frame only
-            if fps_counter == 0 and fps_start_time == time.time():
-                print(f"[DEBUG] Frame shape: {frame.shape}, dtype: {frame.dtype}")
-            
-            # Handle various camera output formats
-            if len(frame.shape) == 2:
-                # Already grayscale
-                gray = frame
-                frame = cv2.cvtColor(frame, cv2.COLOR_GRAY2BGR)
-            elif frame.shape[2] == 4:
-                # BGRA format (some webcams output this)
-                frame = cv2.cvtColor(frame, cv2.COLOR_BGRA2BGR)
-                gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-            elif frame.shape[2] == 3:
-                # Standard BGR format
-                gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-            else:
-                print(f"[WARNING] Unexpected frame format: {frame.shape}")
-                continue
-            
-            # Resize frame
+            frame_count += 1
             frame = imutils.resize(frame, width=WINDOW_WIDTH)
+            (H, W) = frame.shape[:2]
             
-            # Create grayscale for OpenCV face detection and dlib predictor
+            # YOLO Distraction Detection (Every 10 frames)
+            if yolo_model and frame_count % 10 == 0:
+                phone_detected = False
+                phone_boxes = []
+                results = yolo_model(frame, stream=True, verbose=False, imgsz=320)
+                for r in results:
+                    for box in r.boxes:
+                        if int(box.cls[0]) == 67 and float(box.conf[0]) > 0.5:
+                            phone_detected = True
+                            phone_boxes.append(box.xyxy[0].cpu().numpy().astype(int))
+            
+            for b in phone_boxes:
+                cv2.rectangle(frame, (b[0], b[1]), (b[2], b[3]), COLOR_YELLOW, 2)
+                cv2.putText(frame, "PHONE", (b[0], b[1] - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, COLOR_YELLOW, 2)
+
             gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-            gray = np.ascontiguousarray(gray)
+            faces = detector.detectMultiScale(gray, 1.1, 5, minSize=(30, 30))
+            rects = [dlib.rectangle(int(x), int(y), int(x+w), int(y+h)) for (x, y, w, h) in faces]
             
-            # Get image dimensions
-            (H, W) = gray.shape[:2]
-            
-            # Detect faces using OpenCV's Haar Cascade
-            faces = detector.detectMultiScale(
-                gray,
-                scaleFactor=1.1,
-                minNeighbors=5,
-                minSize=(30, 30),
-                flags=cv2.CASCADE_SCALE_IMAGE
-            )
-            
-            # Convert OpenCV face rectangles to dlib rectangle format with CLAMPING
-            # Dlib crashes if the rectangle is even slightly outside the image
-            rects = []
-            for (x, y, w, h) in faces:
-                # Clamp coordinates to image boundaries
-                x = max(0, int(x))
-                y = max(0, int(y))
-                w = min(int(w), W - x)
-                h = min(int(h), H - y)
+            is_drowsy = False
+            is_yawning = False
+
+            for rect in rects:
+                try:
+                    shape = predictor(gray, rect)
+                    shape = face_utils.shape_to_np(shape)
+                    
+                    ear = (eye_aspect_ratio(shape[lStart:lEnd]) + eye_aspect_ratio(shape[rStart:rEnd])) / 2.0
+                    mar = mouth_aspect_ratio(shape[mStart:mEnd])
+                    
+                    cv2.drawContours(frame, [cv2.convexHull(shape[lStart:lEnd])], -1, COLOR_GREEN, 1)
+                    cv2.drawContours(frame, [cv2.convexHull(shape[rStart:rEnd])], -1, COLOR_GREEN, 1)
+                    cv2.drawContours(frame, [cv2.convexHull(shape[mStart:mEnd])], -1, COLOR_GREEN, 1)
+                    
+                    if ear < EYE_ASPECT_RATIO_THRESHOLD:
+                        if eyes_closed_start_time is None: eyes_closed_start_time = time.time()
+                    else: eyes_closed_start_time = None
+                        
+                    if mar > MOUTH_ASPECT_RATIO_THRESHOLD:
+                        if yawn_start_time is None: yawn_start_time = time.time()
+                    else: yawn_start_time = None
+
+                    is_drowsy = eyes_closed_start_time is not None and (time.time() - eyes_closed_start_time) >= EYE_CLOSED_SECONDS_THRESHOLD
+                    is_yawning = yawn_start_time is not None and (time.time() - yawn_start_time) >= YAWN_SECONDS_THRESHOLD
+                    
+                    cv2.putText(frame, f"EAR: {ear:.3f}", (10, 25), cv2.FONT_HERSHEY_SIMPLEX, 0.6, COLOR_GREEN if ear >= EYE_ASPECT_RATIO_THRESHOLD else COLOR_RED, 2)
+                    cv2.putText(frame, f"MAR: {mar:.3f}", (10, 50), cv2.FONT_HERSHEY_SIMPLEX, 0.6, COLOR_GREEN if mar <= MOUTH_ASPECT_RATIO_THRESHOLD else COLOR_RED, 2)
+                except Exception:
+                    pass
+
+            if is_drowsy or is_yawning or phone_detected:
+                if not ALARM_ON:
+                    ALARM_ON = True
+                    if audio_enabled: pygame.mixer.music.play(-1)
+                    send_sms_alert(frame)
                 
-                # Skip invalid or too small faces which can cause dlib errors
-                if w < 20 or h < 20:
-                    continue
-                
-                # Construct dlib rectangle correctly (right/bottom are inclusive)
-                rects.append(dlib.rectangle(x, y, x + w - 1, y + h - 1))
-            
-            # Calculate FPS
+                cv2.rectangle(frame, (0, 0), (W, H), COLOR_RED, 5)
+                msg = "PHONE USE!" if phone_detected else ("WAKE UP!" if is_drowsy else "YAWNING!")
+                cv2.putText(frame, f"!!! {msg} !!!", (W//2-150, H//2), cv2.FONT_HERSHEY_SIMPLEX, 1.2, COLOR_RED, 4)
+            else:
+                if ALARM_ON:
+                    ALARM_ON = False
+                    if audio_enabled: pygame.mixer.music.stop()
+
             fps_counter += 1
             if (time.time() - fps_start_time) > 1:
                 current_fps = fps_counter / (time.time() - fps_start_time)
                 fps_counter = 0
                 fps_start_time = time.time()
             
-            # Display status bar background
-            cv2.rectangle(frame, (0, 0), (frame.shape[1], 40), (0, 0, 0), -1)
-            
-            # Process each detected face
-            for rect in rects:
-                # Get coordinates for crop
-                (x, y, w, h) = (rect.left(), rect.top(), rect.width(), rect.height())
-                
-                # Prepare crops
-                face_crop_gray = gray[y:y+h, x:x+w]
-                if face_crop_gray.size == 0: continue
-                
-                try:
-                    # Try Dlib first (Primary Method)
-                    face_crop_rgb = cv2.cvtColor(face_crop_gray, cv2.COLOR_GRAY2RGB)
-                    face_crop_rgb = np.ascontiguousarray(face_crop_rgb, dtype=np.uint8)
-                    (crop_h, crop_w) = face_crop_rgb.shape[:2]
-                    crop_rect = dlib.rectangle(0, 0, crop_w - 1, crop_h - 1)
-                    
-                    if predictor is None: raise RuntimeError("Dlib not loaded")
-                    
-                    shape = predictor(face_crop_rgb, crop_rect)
-                    shape = face_utils.shape_to_np(shape)
-                    
-                    # Offset landmarks back to global coordinates
-                    shape += (x, y)
-                    
-                    # Extract eye and mouth coordinates
-                    leftEye = shape[lStart:lEnd]
-                    rightEye = shape[rStart:rEnd]
-                    mouth = shape[mStart:mEnd]
-                    
-                    # Calculate aspect ratios
-                    leftEAR = eye_aspect_ratio(leftEye)
-                    rightEAR = eye_aspect_ratio(rightEye)
-                    ear = (leftEAR + rightEAR) / 2.0
-                    mar = mouth_aspect_ratio(mouth)
-                    
-                    # Draw eye and mouth contours
-                    leftEyeHull = cv2.convexHull(leftEye)
-                    rightEyeHull = cv2.convexHull(rightEye)
-                    mouthHull = cv2.convexHull(mouth)
-                    cv2.drawContours(frame, [leftEyeHull], -1, COLOR_GREEN, 1)
-                    cv2.drawContours(frame, [rightEyeHull], -1, COLOR_GREEN, 1)
-                    cv2.drawContours(frame, [mouthHull], -1, COLOR_GREEN, 1)
-                    
-                    # Check EAR for drowsiness
-                    if ear < EYE_ASPECT_RATIO_THRESHOLD:
-                        if eyes_closed_start_time is None:
-                            eyes_closed_start_time = time.time()
-                    else:
-                        eyes_closed_start_time = None
-                    
-                    # Check MAR for yawning
-                    if mar > MOUTH_ASPECT_RATIO_THRESHOLD:
-                        if yawn_start_time is None:
-                            yawn_start_time = time.time()
-                    else:
-                        yawn_start_time = None
-                    
-                    # Display metrics
-                    ear_color = COLOR_GREEN if ear >= EYE_ASPECT_RATIO_THRESHOLD else COLOR_RED
-                    cv2.putText(frame, f"EAR: {ear:.3f}", (10, 28), cv2.FONT_HERSHEY_SIMPLEX, 0.6, ear_color, 2)
-                    
-                    mar_color = COLOR_GREEN if mar <= MOUTH_ASPECT_RATIO_THRESHOLD else COLOR_RED
-                    cv2.putText(frame, f"MAR: {mar:.3f}", (10, 58), cv2.FONT_HERSHEY_SIMPLEX, 0.6, mar_color, 2)
-                    
-                except RuntimeError as e:
-                    # Fallback to OpenCV Eye Detection if dlib fails
-                    cv2.putText(frame, "Fallback Mode", (x, y-10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, COLOR_YELLOW, 2)
-                    
-                    # Detect eyes in the face crop
-                    eyes = eye_cascade.detectMultiScale(face_crop_gray, scaleFactor=1.1, minNeighbors=10, minSize=(15, 15))
-                    
-                    # Draw detected eyes
-                    for (ex, ey, ew, eh) in eyes:
-                        cv2.rectangle(frame, (x+ex, y+ey), (x+ex+ew, y+ey+eh), COLOR_GREEN, 1)
-                    
-                    # HEURISTIC: If NO eyes detected, assume closed? (Very rough)
-                    # Or fewer than 1 eye
-                    if len(eyes) < 1:
-                        if eyes_closed_start_time is None:
-                            eyes_closed_start_time = time.time()
-                        cv2.putText(frame, "Eyes: 0 (Closed?)", (10, 28), cv2.FONT_HERSHEY_SIMPLEX, 0.6, COLOR_RED, 2)
-                    else:
-                        eyes_closed_start_time = None
-                        cv2.putText(frame, f"Eyes: {len(eyes)}", (10, 28), cv2.FONT_HERSHEY_SIMPLEX, 0.6, COLOR_GREEN, 2)
-
-                # Evaluate time-based triggers
-                is_drowsy = eyes_closed_start_time is not None and (time.time() - eyes_closed_start_time) >= EYE_CLOSED_SECONDS_THRESHOLD
-                is_yawning = yawn_start_time is not None and (time.time() - yawn_start_time) >= YAWN_SECONDS_THRESHOLD
-
-                # TRIGGER ALARM (Shared logic)
-                if is_drowsy or is_yawning:
-                    if not ALARM_ON:
-                        ALARM_ON = True
-                        if audio_enabled:
-                            pygame.mixer.music.play(-1)
-                        # Send SMS Alert only when transitioning to alarm
-                        send_sms_alert(frame)
-                    
-                    cv2.rectangle(frame, (0, 40), (W, H), COLOR_RED, 4)
-                    
-                    alert_text = "!!! DROWSINESS ALERT !!!" if is_drowsy else "!!! YAWNING ALERT !!!"
-                    cv2.putText(frame, alert_text, 
-                                (W//2 - 150, H//2), cv2.FONT_HERSHEY_SIMPLEX, 1.0, COLOR_RED, 3)
-                    cv2.putText(frame, "WAKE UP!", 
-                                (W//2 - 70, H//2 + 40), cv2.FONT_HERSHEY_SIMPLEX, 1.0, COLOR_RED, 3)
-                else:
-                    if ALARM_ON:
-                        ALARM_ON = False
-                        if audio_enabled:
-                            pygame.mixer.music.stop()
-                
-
-            
-            # Display "No Face Detected" if no faces found
             if len(rects) == 0:
-                cv2.putText(frame, "No Face Detected", (10, 28),
-                            cv2.FONT_HERSHEY_SIMPLEX, 0.6, COLOR_YELLOW, 2)
+                cv2.putText(frame, "No Face Detected", (10, 25), cv2.FONT_HERSHEY_SIMPLEX, 0.6, COLOR_YELLOW, 2)
+            cv2.putText(frame, f"FPS: {current_fps:.1f}", (W-100, 25), cv2.FONT_HERSHEY_SIMPLEX, 0.6, COLOR_WHITE, 2)
             
-            # Display FPS
-            if DISPLAY_FPS:
-                cv2.putText(frame, f"FPS: {current_fps:.1f}", 
-                            (frame.shape[1] - 100, 28),
-                            cv2.FONT_HERSHEY_SIMPLEX, 0.6, COLOR_WHITE, 2)
+            cv2.imshow("WakeGuard", frame)
+            if cv2.waitKey(1) & 0xFF == ord("q"): break
             
-            # Display Credits at the bottom of the frame
-            credits_y = frame.shape[0] - 10  # 10 pixels from bottom
-            cv2.rectangle(frame, (0, frame.shape[0] - 50), (frame.shape[1], frame.shape[0]), (0, 0, 0), -1)  # Dark background
-            cv2.putText(frame, "Team: META MINDS", 
-                        (10, credits_y - 20),
-                        cv2.FONT_HERSHEY_SIMPLEX, 0.5, COLOR_YELLOW, 1)
-            cv2.putText(frame, "Guidance: Dr. K Sampath", 
-                        (10, credits_y),
-                        cv2.FONT_HERSHEY_SIMPLEX, 0.5, COLOR_WHITE, 1)
-            
-            # Show the frame
-            cv2.imshow("WakeGuard - Driver Safety System", frame)
-            
-            # Check for quit key
-            key = cv2.waitKey(1) & 0xFF
-            if key == ord("q"):
-                print("\n[INFO] Quitting...")
-                break
-    
-    except KeyboardInterrupt:
-        print("\n[INFO] Interrupted by user")
-    
+    except Exception as e:
+        print(f"[ERROR] {e}")
     finally:
-        # Cleanup
-        print("[INFO] Cleaning up...")
         cv2.destroyAllWindows()
         cap.release()
-        if audio_enabled:
-            pygame.mixer.music.stop()
-            pygame.mixer.quit()
-        print("[INFO] WakeGuard terminated successfully\n")
-
-
-# ═══════════════════════════════════════════════════════════════════════════════
-#                              ENTRY POINT
-# ═══════════════════════════════════════════════════════════════════════════════
+        if audio_enabled: pygame.mixer.quit()
 
 if __name__ == "__main__":
     main()

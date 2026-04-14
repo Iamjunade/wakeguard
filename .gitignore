@@ -1,0 +1,25 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+env/
+venv/
+.venv/
+
+# Deep Learning Models (downloaded at runtime)
+*.pt
+*.pth
+*.weights
+
+# Temporary data
+alert_frame.jpg
+error.txt
+
+# Local audio (if needed to stay local)
+# alarm.wav
+
+# OS
+.DS_Store
+Thumbs.db

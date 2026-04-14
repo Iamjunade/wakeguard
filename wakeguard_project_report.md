@@ -100,20 +100,27 @@ function calculateHaversineDistance(lat1, lon1, lat2, lon2) {
 }
 ```
 
-### Computer Vision Implementation (Repository Code)
-The repository heavily leverages facial tracking logic in `drowsiness_detect.py` and `app.js`. 
-In the Python application, the calculation uses the `scipy.spatial.distance.euclidean` function. The 68 facial landmarks are predicted by dlib (`shape_predictor_68_face_landmarks.dat`). 
+### Computer Vision Implementation (Optimized)
+The repository leverages advanced facial tracking logic in `drowsiness_detect.py` and `app.js`. Recent optimizations have transitioned the system from a frame-based counter to **Time-Based Tracking**, ensuring consistent detection speed regardless of the hardware's FPS or processing lag.
+
+The thresholding logic has been tuned for high-speed responsiveness:
+*   **EAR Threshold:** 0.26 (Optimized for early-stage drowsiness detection).
+*   **Alarm Delay:** 1.5 Seconds (Faster than standard 2s intervals to catch micro-sleeps immediately).
+*   **MAR Threshold:** 0.60 (Precision tuned for yawning detection).
+
+In the Python application, calculation uses `scipy.spatial.distance.euclidean`. Facial landmarks are predicted via dlib (`shape_predictor_68_face_landmarks.dat`).
 
 ```python
-# From drowsiness_detect.py
-def eye_aspect_ratio(eye):
-    A = dist.euclidean(eye[1], eye[5])  # Vertical distance 1
-    B = dist.euclidean(eye[2], eye[4])  # Vertical distance 2
-    C = dist.euclidean(eye[0], eye[3])  # Horizontal distance
-    ear = (A + B) / (2.0 * C)
-    return ear
+# From drowsiness_detect.py (Optimized Time-Based Logic)
+if ear < EYE_ASPECT_RATIO_THRESHOLD:
+    if eyes_closed_start_time is None:
+        eyes_closed_start_time = time.time()
+else:
+    eyes_closed_start_time = None
+
+# Alarm triggers if (current_time - start_time) >= 1.5s
 ```
-The threshold (`CONFIG.EAR_THRESHOLD = 0.22` in JS, `0.25` in Python) dictates when eyes are closed. If the eyes remain closed for `CONSEC_FRAMES_THRESHOLD` (approx. 2 seconds), the `triggerAlarm()` sequence executes.
+This time-based approach prevents detection delays on low-performance devices where frame rates might drop below 20 FPS.
 
 ### API Integrations
 The `package.json` and equivalent scripts reveal the absence of heavy backend frameworks, opting for lightweight Fetch API calls. The **TextBee API** is deeply integrated into `app.js`:

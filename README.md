@@ -23,11 +23,11 @@ Under guidance of **Dr. K Sampath**
 | Feature | Description |
 |---------|-------------|
 | 👁️ **Eye Tracking** | Real-time Eye Aspect Ratio (EAR) monitoring using facial landmarks |
-| ⏱️ **2-Second Alert** | Alarm triggers if eyes closed for 2+ seconds |
+| ⚡ **1.5s Quick Alert** | **[Improved]** Alarm triggers if eyes closed for 1.5+ seconds |
 | 🔔 **Audio Alarm** | Loud beeping alert to wake drowsy drivers |
-| 📱 **SMS Notification** | Automatic emergency SMS via TextBee API |
+| 📱 **SMS & WhatsApp** | Automated emergency alerts via TextBee and Node Proxy |
 | 🌐 **Web Version** | Browser-based - works on any device with a webcam |
-| 🖥️ **Desktop Version** | Python app with OpenCV + dlib |
+| 🖥️ **Desktop Version** | High-performance Python app (+ Optimized for Windows) |
 
 ---
 
@@ -145,7 +145,8 @@ WakeGuard/
 ### Desktop
 1. Run `run_wakeguard.bat`
 2. Face the camera
-3. Close eyes to test detection
+3. Close eyes for 1.5 seconds to test detection
+4. Detection is now **Time-Based**, making it significantly more accurate on all devices.
 
 ---
 

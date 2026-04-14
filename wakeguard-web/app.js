@@ -61,6 +61,12 @@ let fpsCounter = 0;
 let lastFpsTime = performance.now();
 let currentFps = 0;
 
+// Distraction Detection (COCO-SSD)
+let cocoSsdModel = null;
+let phoneDetected = false;
+let phoneBoxes = [];
+let lastDetectionTime = 0;
+
 // DOM Elements
 const webcamElement = document.getElementById('webcam');
 const canvasElement = document.getElementById('canvas');
@@ -598,6 +604,36 @@ function onResults(results) {
     canvasCtx.save();
     canvasCtx.clearRect(0, 0, canvasElement.width, canvasElement.height);
 
+    // AI Distraction Detection (Every 15 frames)
+    if (cocoSsdModel && isRunning && frameCounter % 15 === 0) {
+        cocoSsdModel.detect(webcamElement).then(predictions => {
+            phoneDetected = false;
+            phoneBoxes = [];
+            predictions.forEach(prediction => {
+                if (prediction.class === 'cell phone' && prediction.score > 0.6) {
+                    phoneDetected = true;
+                    phoneBoxes.push(prediction);
+                }
+            });
+
+            if (phoneDetected) {
+                addLogEntry('DISTRACTION: Phone use detected!', 'danger');
+                if (!alarmOn) triggerAlarm();
+                fetchAndSpeakAI('distraction');
+            }
+        });
+    }
+
+    // Overlay distracton boxes
+    phoneBoxes.forEach(box => {
+        canvasCtx.strokeStyle = '#ffcc00';
+        canvasCtx.lineWidth = 4;
+        canvasCtx.strokeRect(...box.bbox);
+        canvasCtx.fillStyle = '#ffcc00';
+        canvasCtx.font = 'bold 16px Inter';
+        canvasCtx.fillText('PHONE USE', box.bbox[0], box.bbox[1] > 20 ? box.bbox[1] - 5 : 20);
+    });
+
     if (results.multiFaceLandmarks && results.multiFaceLandmarks.length > 0) {
         const landmarks = results.multiFaceLandmarks[0];
 
@@ -731,6 +767,15 @@ async function initializeFaceMesh() {
 
     faceMesh.onResults(onResults);
     console.log('[INFO] MediaPipe Face Mesh initialized');
+
+    // Load COCO-SSD for distraction detection
+    try {
+        updateStatus('Loading AI Models...', 'normal');
+        cocoSsdModel = await cocoSsd.load();
+        console.log('[INFO] COCO-SSD model loaded');
+    } catch (error) {
+        console.error('[ERROR] Failed to load COCO-SSD:', error);
+    }
 }
 
 async function startDetection() {

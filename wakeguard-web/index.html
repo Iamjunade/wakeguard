@@ -10,6 +10,9 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <!-- Chart.js -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- TensorFlow.js and COCO-SSD for Distraction Detection -->
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/coco-ssd"></script>
 </head>
 <body>
     <div class="dashboard">
@@ -179,7 +182,7 @@
     
     <!-- Audio Element for Alarm -->
     <audio id="alarmSound" loop>
-        <source src="../alarm.wav" type="audio/wav">
+        <source src="alarm.wav" type="audio/wav">
     </audio>
 
     <!-- Hidden Settings Modal -->
