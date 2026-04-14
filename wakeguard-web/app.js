@@ -32,7 +32,7 @@ const CONFIG = {
     LEFT_EYE: [362, 385, 387, 263, 373, 380],
 
     // AI Voice Configuration
-    DRIVER_NAME: 'Junaid',           // Driver's name for personalized alerts
+    DRIVER_NAME: 'John',           // Driver's name for personalized alerts
     AI_VOICE_COOLDOWN_MS: 30000,     // 30 seconds between voice alerts
     AI_VOICE_ENABLED: true,          // Toggle AI voice on/off
     WHATSAPP_SERVER_URL: 'http://localhost:3000', // Default local URL
