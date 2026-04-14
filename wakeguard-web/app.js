@@ -90,6 +90,7 @@ const instantAlertsToggle = document.getElementById('instantAlertsToggle');
 const smsToggle = document.getElementById('smsToggle');
 const earScoreSlider = document.getElementById('earScoreSlider');
 const earSliderValue = document.getElementById('earSliderValue');
+const nightModeToggle = document.getElementById('nightModeToggle');
 
 // Chart data arrays
 const timeData = Array(60).fill(''); 
@@ -577,6 +578,21 @@ function onResults(results) {
 
     canvasCtx.save();
     canvasCtx.clearRect(0, 0, canvasElement.width, canvasElement.height);
+
+    // Apply Night Mode / Low Light Boost
+    if (nightModeToggle && nightModeToggle.checked) {
+        // Boost brightness and contrast for detection visibility
+        canvasCtx.filter = 'brightness(1.5) contrast(1.2) hue-rotate(80deg) saturate(1.5)';
+        
+        // Add a digital "scanline" or green overlay effect
+        canvasCtx.fillStyle = 'rgba(0, 255, 100, 0.05)';
+        canvasCtx.fillRect(0, 0, canvasElement.width, canvasElement.height);
+        
+        // Label
+        canvasCtx.fillStyle = '#00ff66';
+        canvasCtx.font = 'bold 14px Inter';
+        canvasCtx.fillText('NIGHT VISION ACTIVE', 20, canvasElement.height - 20);
+    }
 
     // AI Distraction Detection (Every 15 frames)
     if (cocoSsdModel && isRunning && frameCounter % 15 === 0) {

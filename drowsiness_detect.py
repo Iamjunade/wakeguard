@@ -45,6 +45,10 @@ COLOR_GREEN = (0, 255, 0)
 COLOR_RED = (0, 0, 255)
 COLOR_YELLOW = (0, 255, 255)
 COLOR_WHITE = (255, 255, 255)
+COLOR_NIGHT = (0, 255, 100) # Matrix/Night Vision Green
+
+# Night Mode Toggle
+NIGHT_MODE = False
 
 # TextBee Configuration for SMS Alerts
 TEXT_BEE_API_KEY = "257cd9a4-2ea6-4171-b1f9-95837eecc032"
@@ -206,6 +210,19 @@ def main():
                 cv2.putText(frame, "PHONE", (b[0], b[1] - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, COLOR_YELLOW, 2)
 
             gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+            
+            # --- Software Night Vision Enhancement ---
+            if NIGHT_MODE:
+                clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8,8))
+                gray = clahe.apply(gray)
+                # Apply a green tint effect for the display
+                frame_display = frame.copy()
+                frame_display[:, :, 0] = 0 # Remove Blue
+                frame_display[:, :, 2] = 0 # Remove Red
+                cv2.rectangle(frame_display, (0, 0), (W, H), (0, 100, 0), 1)
+                frame = cv2.addWeighted(frame, 0.5, frame_display, 0.5, 0)
+                cv2.putText(frame, "NIGHT VISION ACTIVE", (W-180, 25), cv2.FONT_HERSHEY_SIMPLEX, 0.5, COLOR_NIGHT, 2)
+            
             faces = detector.detectMultiScale(gray, 1.1, 5, minSize=(30, 30))
             rects = [dlib.rectangle(int(x), int(y), int(x+w), int(y+h)) for (x, y, w, h) in faces]
             
@@ -264,9 +281,14 @@ def main():
                 cv2.putText(frame, "No Face Detected", (10, 25), cv2.FONT_HERSHEY_SIMPLEX, 0.6, COLOR_YELLOW, 2)
             cv2.putText(frame, f"FPS: {current_fps:.1f}", (W-100, 25), cv2.FONT_HERSHEY_SIMPLEX, 0.6, COLOR_WHITE, 2)
             
-            cv2.imshow("WakeGuard", frame)
-            if cv2.waitKey(1) & 0xFF == ord("q"): break
+            cv2.imshow("WakeGuard - Driver Monitor", frame)
             
+            key = cv2.waitKey(1) & 0xFF
+            if key == ord("q"):
+                break
+            elif key == ord("n"):
+                NIGHT_MODE = not NIGHT_MODE
+                print(f"[INFO] Night Mode: {'ON' if NIGHT_MODE else 'OFF'}")
     except Exception as e:
         print(f"[ERROR] {e}")
     finally:
