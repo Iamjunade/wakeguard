@@ -4,7 +4,14 @@ const { Client, LocalAuth, MessageMedia } = require('whatsapp-web.js');
 const qrcode = require('qrcode-terminal');
 
 const app = express();
-app.use(cors());
+
+// Enhanced CORS configuration for Vercel -> Local Tunneling
+app.use(cors({
+    origin: '*', // Allows Vercel and other origins to communicate with your local machine
+    methods: ['GET', 'POST', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'Bypass-Tunnel-Reminder']
+}));
+
 app.use(express.json({ limit: '10mb' }));
 
 const PORT = 3000;

@@ -381,7 +381,8 @@ async function sendSmsAlert(customMessage) {
             fetch(`${CONFIG.WHATSAPP_SERVER_URL}/api/alert/whatsapp`, {
                 method: 'POST',
                 headers: {
-                    'Content-Type': 'application/json'
+                    'Content-Type': 'application/json',
+                    'Bypass-Tunnel-Reminder': 'true'
                 },
                 body: JSON.stringify({
                     number: recipient,
@@ -461,7 +462,10 @@ async function fetchAndSpeakAI(alertType) {
     try {
         const response = await fetch(aiEndpoint, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: { 
+                'Content-Type': 'application/json',
+                'Bypass-Tunnel-Reminder': 'true'
+            },
             body: JSON.stringify({
                 alertType: alertType,
                 driverName: CONFIG.DRIVER_NAME
