@@ -419,7 +419,9 @@ function speakMessage(text) {
 }
 
 /**
- * Query local Ollama AI for a compassionate alert message and speak it
+ * Query AI for a compassionate alert message and speak it
+ * - On Vercel: calls /api/ai-chat (Groq Llama-3, cloud)
+ * - On Local:  calls http://localhost:3000/api/ai/chat (Ollama, offline)
  */
 async function fetchAndSpeakAI(alertType) {
     const now = Date.now();
@@ -437,10 +439,20 @@ async function fetchAndSpeakAI(alertType) {
     };
     speakMessage(quickAlerts[alertType] || 'Please pull over and rest.');
 
+    // Detect environment: Vercel (production) vs Local
+    const isLocal = window.location.hostname === 'localhost' || 
+                    window.location.hostname === '127.0.0.1' || 
+                    window.location.protocol === 'file:';
+    
+    const aiEndpoint = isLocal 
+        ? 'http://localhost:3000/api/ai/chat'   // Ollama (offline)
+        : '/api/ai-chat';                        // Groq via Vercel (online)
+
+    console.log(`[AI] Fetching personalised alert from ${isLocal ? 'Ollama (local)' : 'Groq (Vercel)'}...`);
+
     // Then query the AI for a richer message (async)
     try {
-        console.log('[AI] Fetching personalised alert from local AI...');
-        const response = await fetch('http://localhost:3000/api/ai/chat', {
+        const response = await fetch(aiEndpoint, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -459,7 +471,7 @@ async function fetchAndSpeakAI(alertType) {
             setTimeout(() => speakMessage(data.message), 4000);
         }
     } catch (err) {
-        console.warn('[AI] Could not reach local AI server. Using quick alert only.', err.message);
+        console.warn('[AI] Could not reach AI server. Using quick alert only.', err.message);
     }
 }
 
