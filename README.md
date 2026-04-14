@@ -1,171 +1,118 @@
-# 👁️ WakeGuard - Driver Drowsiness Detection System
+# 👁️ WakeGuard - Advanced AI Driver Safety System
 
 <div align="center">
 
-**Real-time AI-powered drowsiness detection to keep drivers safe**
+**A Multi-Modal Safety Co-Pilot for Drowsiness & Distraction Detection**
 
 [![Made with Python](https://img.shields.io/badge/Python-3.7+-blue?logo=python&logoColor=white)](https://python.org)
 [![Web App](https://img.shields.io/badge/Web-MediaPipe-green?logo=google&logoColor=white)](https://mediapipe.dev)
-[![License](https://img.shields.io/badge/License-MIT-yellow)](LICENSE)
+[![AI Engine](https://img.shields.io/badge/AI-Groq%20%7C%20YOLOv8-red)](https://groq.com)
+[![Deployment](https://img.shields.io/badge/Deployment-Vercel%20%7C%20Local-black)](https://vercel.com)
 
 **Team META MINDS** | Team Lead: Mohd Junaid Pasha
-
 Under guidance of **Dr. K Sampath**
 
-[Desktop App](#-desktop-version) • [Web App](#-web-version) • [Features](#-features) • [Demo](#-how-it-works)
+[Features](#-key-capabilities) • [Architecture](#-the-bridge-architecture) • [Getting Started](#-getting-started) • [Tech Stack](#-the-engine-room)
 
 </div>
 
 ---
 
-## ✨ Features
-
-| Feature | Description |
-|---------|-------------|
-| 👁️ **Eye Tracking** | Real-time Eye Aspect Ratio (EAR) monitoring using facial landmarks |
-| ⚡ **1.5s Quick Alert** | **[Improved]** Alarm triggers if eyes closed for 1.5+ seconds |
-| 🔔 **Audio Alarm** | Loud beeping alert to wake drowsy drivers |
-| 📱 **SMS & WhatsApp** | Automated emergency alerts via TextBee and Node Proxy |
-| 🌐 **Web Version** | Browser-based - works on any device with a webcam |
-| 🖥️ **Desktop Version** | High-performance Python app (+ Optimized for Windows) |
+## 🚀 Mission & Impact
+WakeGuard is designed to eliminate road accidents caused by **Microsleep** and **Distraction**. Unlike traditional passive buzzers, WakeGuard is a proactive **Safety Co-Pilot** that engages the driver personally and notifies their emergency circle in real-time.
 
 ---
 
-## 🌐 Web Version
+## 🌟 Key Capabilities
 
-**Live Demo:** [wakeguard.vercel.app](https://wakeguard.vercel.app)
+### 👁️ Precision Drowsiness Detection
+Utilizes **MediaPipe Face Mesh** to monitor 468 facial landmarks. The system calculates **Eye Aspect Ratio (EAR)** and **Mouth Aspect Ratio (MAR)** with sub-second precision to detect sleep onset or excessive yawning.
 
-### How to Run Locally
-```bash
-cd wakeguard-web
-python -m http.server 8000
-```
-Open: http://localhost:8000
+### 📱 AI Distraction Detection (YOLOv8)
+Standard systems only check eyes; WakeGuard identifies **WHY** you are distracted. Using **YOLOv8 (Desktop)** and **COCO-SSD (Web)**, it specifically detects "Cell Phone Use" and triggers immediate intervention.
 
-### Tech Stack
-- **MediaPipe Face Mesh** - 468 facial landmarks
-- **Web Audio API** - Programmatic alarm sound
-- **TextBee API** - SMS alerts
-- **Vanilla JS + CSS** - No frameworks needed
+### 🎙️ AI Voice Co-Pilot
+Powered by **Groq Cloud (Llama 3)**, the assistant speaks directly to the driver (**John**) with personalized alerts. It doesn't just beep; it breaks the mental fog with conversational engagement.
+
+### 📲 Multi-Channel Remote Alerts
+When a high-risk event occurs, WakeGuard automatically dispatches:
+- **WhatsApp Messages**: Full media alerts with "Evidence Photos" captured during the event.
+- **SMS Notifications**: Real-time alerts with time, date, and GPS location via **TextBee**.
+
+### 🌙 Software Night Vision
+Integrated **CLAHE (Contrast Limited Adaptive Histogram Equalization)** algorithms electronically enhance low-light cabin video, allowing landmarks to be tracked even in dim driving conditions.
 
 ---
 
-## 🖥️ Desktop Version
+## 🏗️ The Bridge Architecture: Vercel-to-Local
+WakeGuard features a unique **Cloud-Local Hybrid Deployment**:
+1. **Cloud Interface**: The dashboard is hosted on **Vercel** for global monitoring.
+2. **Local Hardware Proxy**: A Node.js backend runs on the driver's machine to interface with local hardware (Webcam/WhatsApp).
+3. **The Tunnel**: Using **Localtunnel**, the cloud dashboard bypasses CORS and security barriers to trigger physical hardware actions on the driver's computer.
 
-### Prerequisites
-- Python 3.7+
-- Webcam
+---
 
-### Installation
+## 🛠️ The Engine Room
+
+| Layer | Technology |
+|:--- | :--- |
+| **Frontend** | HTML5, Vanilla CSS3 (Glassmorphism), JavaScript (ES6+) |
+| **Vision** | MediaPipe, TensorFlow.js, OpenCV (Python), Dlib |
+| **Object Detection** | **YOLOv8n** (Ultralytics), COCO-SSD |
+| **AI (LLM)** | Groq API (Cloud), Ollama (Local Fallback) |
+| **Messaging** | WhatsApp-web.js, TextBee API |
+| **Deployment** | Vercel, Localtunnel, Python HTTP Server |
+
+---
+
+## 🚦 Getting Started
+
+### 1. The All-In-One Launcher (Recommended)
+We have provided a "Full Power" batch script to launch the entire ecosystem for presentations:
+- Double-click **`WAKEGUARD_ALL_IN_ONE.bat`**
+- This will automatically start the WhatsApp Server, Web Dashboard, and Localtunnel Bridge.
+
+### 2. Desktop Detector (Python)
+Perfect for high-performance local monitoring:
 ```bash
-# Install dependencies
-pip install -r requirements.txt
-
-# Download the facial landmark model
-# From: http://dlib.net/files/shape_predictor_68_face_landmarks.dat.bz2
-# Extract and place in project folder
-```
-
-### How to Run
-```bash
-# Option 1: Double-click
-run_wakeguard.bat
-
-# Option 2: Command line
 python drowsiness_detect.py
 ```
+- **Key 'Q'**: Quit
+- **Key 'N'**: Toggle **Night Vision Mode**
 
-### Controls
-| Key | Action |
-|-----|--------|
-| `q` | Quit application |
+### 3. Web Dashboard (Live)
+Visit: [wakeguard.vercel.app](https://wakeguard.vercel.app)
 
 ---
 
-## 🎯 How It Works
+## 🔒 Private Configuration
+Type the secret code **`pasha123`** anywhere on the dashboard to access the **Vault**:
+- Configure **Emergency Contact Numbers**.
+- Set your **WhatsApp Proxy URL** (the Localtunnel link).
 
-```
-┌─────────────┐    ┌──────────────┐    ┌─────────────┐
-│   Webcam    │───▶│  Face Mesh   │───▶│ EAR Calc    │
-│   Frame     │    │  Detection   │    │ (Eye Ratio) │
-└─────────────┘    └──────────────┘    └─────────────┘
-                                              │
-                                              ▼
-┌─────────────┐    ┌──────────────┐    ┌─────────────┐
-│  SMS Alert  │◀───│   Trigger    │◀───│ Eyes Closed │
-│  (TextBee)  │    │    Alarm     │    │ > 2 seconds │
-└─────────────┘    └──────────────┘    └─────────────┘
-```
+---
 
-**Eye Aspect Ratio (EAR) Formula:**
-```
-EAR = (||p2-p6|| + ||p3-p5||) / (2 × ||p1-p4||)
-```
-When EAR drops below threshold (0.22) → Eyes are closed
+## 🛣️ Future Roadmap: Interactive Dialogue
+The next phase of WakeGuard will implement **Two-Way AI Dialogue**, allowing the driver to talk back to the assistant. This will involve:
+- **Speech-to-Text (STT)**: Using whisper-1.
+- **Cognitive Assessment**: AI asking the driver "Are you okay?" and waiting for a verbal confirmation.
 
 ---
 
 ## 👥 Team META MINDS
 
 | Role | Name |
-|------|------|
+|:--- | :--- |
 | **Team Lead** | Mohd Junaid Pasha |
-| **Member** | Mohd Saif Patel |
-| **Member** | Farjana Shaikh |
-| **Mentor** | Dr. K Sampath |
-
----
-
-## 📁 Project Structure
-
-```
-WakeGuard/
-├── drowsiness_detect.py     # Desktop Python app
-├── requirements.txt         # Python dependencies
-├── alarm.wav               # Alert sound file
-├── run_wakeguard.bat       # Windows launcher
-├── shape_predictor_68_face_landmarks.dat  # dlib model
-└── wakeguard-web/          # Web version
-    ├── index.html          # Main page
-    ├── style.css           # Styling
-    ├── app.js              # Detection logic
-    └── package.json        # NPM config
-```
-
----
-
-## 🚀 Quick Start
-
-### Web (Recommended for Demo)
-1. Visit [wakeguard.vercel.app](https://wakeguard.vercel.app)
-2. Click **Start Detection**
-3. Allow camera access
-4. Close eyes for 2 seconds to test alarm
-
-### Desktop
-1. Run `run_wakeguard.bat`
-2. Face the camera
-3. Close eyes for 1.5 seconds to test detection
-4. Detection is now **Time-Based**, making it significantly more accurate on all devices.
-
----
-
-## 🔒 Secret Settings
-
-Type `pasha123` anywhere on the web page to access hidden settings for configuring SMS recipient number.
-
----
-
-## 📄 License
-
-MIT License - Team META MINDS © 2026
+| **Core Developer** | Mohd Saif Patel |
+| **Research Lead** | Farjana Shaikh |
+| **Guidance** | **Dr. K Sampath** |
 
 ---
 
 <div align="center">
 
 **Made with ❤️ by Team META MINDS**
-
-*Keeping drivers safe, one blink at a time*
+*Keeping drivers safe, one blink at a time.*
 
 </div>
