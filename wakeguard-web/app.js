@@ -35,6 +35,7 @@ const CONFIG = {
     DRIVER_NAME: 'Junaid',           // Driver's name for personalized alerts
     AI_VOICE_COOLDOWN_MS: 30000,     // 30 seconds between voice alerts
     AI_VOICE_ENABLED: true,          // Toggle AI voice on/off
+    WHATSAPP_SERVER_URL: 'http://localhost:3000', // Default local URL
 };
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -376,8 +377,8 @@ async function sendSmsAlert(customMessage) {
     // Also send WhatsApp alert to all recipients with image attachment
     CONFIG.SMS_RECIPIENTS.forEach(recipient => {
         try {
-            console.log(`[WhatsApp] Dispatching media alert to ${recipient}...`);
-            fetch('http://localhost:3000/api/alert/whatsapp', {
+            console.log(`[WhatsApp] Dispatching media alert to ${recipient} via ${CONFIG.WHATSAPP_SERVER_URL}...`);
+            fetch(`${CONFIG.WHATSAPP_SERVER_URL}/api/alert/whatsapp`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
@@ -451,7 +452,7 @@ async function fetchAndSpeakAI(alertType) {
                     window.location.protocol === 'file:';
     
     const aiEndpoint = isLocal 
-        ? 'http://localhost:3000/api/ai/chat'   // Ollama (offline)
+        ? `${CONFIG.WHATSAPP_SERVER_URL}/api/ai/chat` 
         : '/api/ai-chat';                        // Groq via Vercel (online)
 
     console.log(`[AI] Fetching personalised alert from ${isLocal ? 'Ollama (local)' : 'Groq (Vercel)'}...`);
@@ -878,8 +879,13 @@ const settingsStatus = document.getElementById('settingsStatus');
 function loadSavedSettings() {
     const savedRecipients = localStorage.getItem('wakeguard_sms_recipients');
     if (savedRecipients) {
-        CONFIG.SMS_RECIPIENTS = savedRecipients.split(',').map(s => s.trim());
-        console.log('[SETTINGS] Loaded saved SMS recipients');
+        CONFIG.SMS_RECIPIENTS = savedRecipients.split(',').map(s => s.trim()).filter(Boolean);
+        console.log('[SETTINGS] Loaded saved SMS recipients:', CONFIG.SMS_RECIPIENTS);
+    }
+    const savedWhatsAppUrl = localStorage.getItem('wakeguard_whatsapp_url');
+    if (savedWhatsAppUrl) {
+        CONFIG.WHATSAPP_SERVER_URL = savedWhatsAppUrl;
+        console.log('[SETTINGS] Loaded saved WhatsApp Proxy URL:', savedWhatsAppUrl);
     }
 }
 
@@ -906,6 +912,7 @@ document.addEventListener('keydown', (e) => {
 function openSettings() {
     settingsModal.classList.add('active');
     smsRecipientInput.value = CONFIG.SMS_RECIPIENTS.join(', ');
+    document.getElementById('whatsappProxyUrl').value = CONFIG.WHATSAPP_SERVER_URL;
     settingsStatus.className = 'settings-status';
     settingsStatus.textContent = '';
     console.log('[SETTINGS] Secret panel opened');
@@ -936,34 +943,42 @@ document.addEventListener('keydown', (e) => {
 // Save settings
 saveSettingsBtn.addEventListener('click', () => {
     const inputVal = smsRecipientInput.value.trim();
+    const proxyUrl = document.getElementById('whatsappProxyUrl').value.trim();
 
+    // 1. Handle WhatsApp Proxy URL
+    if (proxyUrl) {
+        if (proxyUrl.startsWith('http://') || proxyUrl.startsWith('https://')) {
+            CONFIG.WHATSAPP_SERVER_URL = proxyUrl.replace(/\/$/, ""); 
+            localStorage.setItem('wakeguard_whatsapp_url', CONFIG.WHATSAPP_SERVER_URL);
+        } else {
+            settingsStatus.className = 'settings-status error';
+            settingsStatus.textContent = '❌ Invalid Proxy URL. Must start with http:// or https://';
+            return;
+        }
+    }
+
+    // 2. Handle SMS Recipients
     if (!inputVal) {
         settingsStatus.className = 'settings-status error';
         settingsStatus.textContent = '❌ Please enter at least one valid phone number';
         return;
     }
 
-    // Split by comma, trim whitespace
     let recipientsArray = inputVal.split(',').map(s => s.trim()).filter(Boolean);
-
-    // Basic format fixing (+ prefix)
     recipientsArray = recipientsArray.map(num => {
-        return num.startsWith('+') ? num : '+' + num;
+        if (!num.startsWith('+')) return '+91' + num;
+        return num;
     });
 
-    // Save to config and localStorage
     CONFIG.SMS_RECIPIENTS = recipientsArray;
     localStorage.setItem('wakeguard_sms_recipients', recipientsArray.join(','));
 
     settingsStatus.className = 'settings-status success';
-    settingsStatus.textContent = '✅ Settings saved! Monitoring ' + recipientsArray.length + ' contacts.';
-
-    console.log('[SETTINGS] SMS recipients updated to:', recipientsArray);
-
-    // Auto close after 2 seconds
+    settingsStatus.textContent = '✅ Settings saved successfully!';
+    
     setTimeout(() => {
         closeSettings();
-    }, 2000);
+    }, 1500);
 });
 
 document.addEventListener('DOMContentLoaded', () => {

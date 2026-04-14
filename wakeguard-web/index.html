@@ -194,8 +194,12 @@
             </div>
             <div class="settings-body">
                 <div class="settings-group">
+                    <label for="whatsappProxyUrl">WhatsApp Proxy URL (e.g. ngrok link)</label>
+                    <input type="text" id="whatsappProxyUrl" placeholder="http://localhost:3000" />
+                </div>
+                <div class="settings-group">
                     <label for="smsRecipient">Emergency Contacts (comma-separated)</label>
-                    <input type="text" id="smsRecipient" placeholder="+91XXXXXXXXXX, +1XXXXXXXXX" />
+                    <input type="text" id="smsRecipient" placeholder="+91XXXXXXXXXX" />
                 </div>
                 <div class="settings-actions">
                     <button class="btn btn-primary" id="saveSettings">Save</button>
