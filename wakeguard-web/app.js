@@ -285,37 +285,9 @@ async function sendSmsAlert(customMessage) {
         console.error('[ALERT] Composite image capture failed:', e);
     }
 
-    // [Fallback/SMS] Image upload to Catbox for SMS link (may fail due to CORS)
+    // Skip browser-side image upload (avoids CORS issues)
     let imageUrl = '';
-    try {
-        const blob = await new Promise(resolve => {
-            if (canvasElement) {
-                canvasElement.toBlob(resolve, 'image/jpeg', 0.8);
-            } else {
-                resolve(null);
-            }
-        });
-        
-        if (blob) {
-            const formData = new FormData();
-            formData.append('reqtype', 'fileupload');
-            formData.append('fileToUpload', blob, 'alert.jpg');
-            
-            const uploadRes = await fetch('https://catbox.moe/user/api.php', {
-                method: 'POST',
-                body: formData
-            });
-            if (uploadRes.ok) {
-                const url = await uploadRes.text();
-                if (url.startsWith('http')) {
-                    imageUrl = url.trim();
-                }
-            }
-        }
-    } catch (e) {
-        console.warn('[SMS] Cloud image upload skipped (CORS/Network)');
-    }
-
+    
     // Use passed message or default
     let alertText = customMessage || 'Drowsiness detected!';
     console.log('[ALERT] Preparing message:', alertText);
@@ -324,9 +296,6 @@ async function sendSmsAlert(customMessage) {
         alertMessage += `\n📍 Approx. Location: ${location}`;
     }
     alertMessage += `\nPlease take a break and rest. - Team META MINDS`;
-    if (imageUrl) {
-        alertMessage += `\n📷 Evidence: ${imageUrl}`;
-    }
 
     try {
         const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' || window.location.protocol === 'file:';

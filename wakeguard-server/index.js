@@ -7,12 +7,17 @@ const app = express();
 
 // Enhanced CORS configuration for Vercel -> Local Tunneling
 app.use(cors({
-    origin: '*', // Allows Vercel and other origins to communicate with your local machine
+    origin: '*',
     methods: ['GET', 'POST', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization', 'Bypass-Tunnel-Reminder']
+    allowedHeaders: ['Content-Type', 'Authorization', 'Bypass-Tunnel-Reminder'],
+    credentials: true
 }));
 
-app.use(express.json({ limit: '10mb' }));
+// Explicitly handle Preflight requests
+app.options('*', cors());
+
+app.use(express.json({ limit: '50mb' })); // Increased limit for high-res photos
+app.use(express.urlencoded({ limit: '50mb', extended: true }));
 
 const PORT = 3000;
 
@@ -89,8 +94,11 @@ app.post('/api/alert/whatsapp', async (req, res) => {
         let result;
         if (image) {
             console.log(`[WhatsApp] Image data detected. Preparing media message...`);
-            // The image should be raw base64 data without the "data:image/jpeg;base64," prefix
-            const media = new MessageMedia('image/jpeg', image);
+            
+            // Auto-strip data URI prefix if present (e.g., "data:image/jpeg;base64,")
+            const base64Data = image.includes('base64,') ? image.split('base64,')[1] : image;
+            
+            const media = new MessageMedia('image/jpeg', base64Data);
             result = await client.sendMessage(chatId, media, { caption: message });
         } else {
             console.log(`[WhatsApp] No image. Sending text-only alert...`);
