@@ -99,6 +99,71 @@ app.post('/api/alert/whatsapp', async (req, res) => {
     }
 });
 
+// AI Conversational Alert Endpoint (Powered by Local Ollama)
+app.post('/api/ai/chat', async (req, res) => {
+    try {
+        const { alertType, driverName } = req.body;
+        const name = driverName || 'Driver';
+
+        let scenario = '';
+        if (alertType === 'DROWSINESS') {
+            scenario = `The driver named ${name} has closed their eyes for 1.5 seconds while driving. They are showing signs of drowsiness.`;
+        } else if (alertType === 'YAWNING') {
+            scenario = `The driver named ${name} has been yawning repeatedly at the wheel. They are showing signs of fatigue.`;
+        } else {
+            scenario = `The driver named ${name} appears to be fatigued.`;
+        }
+
+        const systemPrompt = `You are WakeGuard, a compassionate AI co-pilot built into a car safety system. 
+Your ONLY job is to generate a single, short, spoken alert message to wake up and engage a drowsy driver.
+Rules:
+- Speak directly to the driver. Address them by their name.
+- Be warm, firm, and concerned — NOT robotic.
+- Keep the message to 1-3 short sentences MAX.
+- Suggest one concrete action (pull over, take a break, open window, drink water).
+- Do NOT use asterisks, markdown, or bullet points. Plain spoken English only.`;
+
+        const userPrompt = `Situation: ${scenario}
+Generate the spoken alert message now.`;
+
+        console.log(`[AI] Querying local Ollama model for ${alertType} alert...`);
+
+        const ollamaResponse = await fetch('http://localhost:11434/api/generate', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                model: 'gpt-oss:20b',
+                prompt: `${systemPrompt}\n\n${userPrompt}`,
+                stream: false,
+                options: {
+                    temperature: 0.8,
+                    num_predict: 80
+                }
+            })
+        });
+
+        if (!ollamaResponse.ok) {
+            throw new Error(`Ollama API returned status ${ollamaResponse.status}`);
+        }
+
+        const ollamaData = await ollamaResponse.json();
+        const aiMessage = (ollamaData.response || '').trim();
+
+        console.log(`[AI] Generated message: "${aiMessage}"`);
+        return res.status(200).json({ success: true, message: aiMessage });
+
+    } catch (error) {
+        console.error('[AI] Error querying Ollama:', error.message);
+        // Fallback message if Ollama is not running
+        const fallbacks = {
+            'DROWSINESS': 'Hey, wake up! Your eyes were closed. Please pull over safely and take a short break.',
+            'YAWNING': 'You seem very tired. Find a safe spot to stop, rest for 20 minutes before continuing.'
+        };
+        const fallback = fallbacks[req.body?.alertType] || 'Please pull over and rest. Your safety is critical.';
+        return res.status(200).json({ success: true, message: fallback, fallback: true });
+    }
+});
+
 // Start Express Server
 app.listen(PORT, () => {
     console.log(`Command Center API listening at http://localhost:${PORT}`);

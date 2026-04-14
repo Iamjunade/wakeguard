@@ -29,8 +29,19 @@ const CONFIG = {
     // Right Eye
     RIGHT_EYE: [33, 160, 158, 133, 153, 144],
     // Left Eye  
-    LEFT_EYE: [362, 385, 387, 263, 373, 380]
+    LEFT_EYE: [362, 385, 387, 263, 373, 380],
+
+    // AI Voice Configuration
+    DRIVER_NAME: 'Junaid',           // Driver's name for personalized alerts
+    AI_VOICE_COOLDOWN_MS: 30000,     // 30 seconds between voice alerts
+    AI_VOICE_ENABLED: true,          // Toggle AI voice on/off
 };
+
+// ═══════════════════════════════════════════════════════════════════════════════
+//                         AI VOICE ALERT STATE
+// ═══════════════════════════════════════════════════════════════════════════════
+let lastAiVoiceTime = 0;
+let isSpeaking = false;
 
 // ═══════════════════════════════════════════════════════════════════════════════
 //                              STATE VARIABLES
@@ -384,6 +395,75 @@ async function sendSmsAlert(customMessage) {
 }
 
 /**
+ * Speak a message aloud using the browser's SpeechSynthesis API
+ */
+function speakMessage(text) {
+    if (!text || isSpeaking) return;
+    window.speechSynthesis.cancel(); // Cancel any ongoing speech
+    
+    const utterance = new SpeechSynthesisUtterance(text);
+    utterance.rate = 0.92;    // Slightly slower — easier to understand in a car
+    utterance.pitch = 1.0;
+    utterance.volume = 1.0;
+
+    // Prefer a natural-sounding voice if available
+    const voices = window.speechSynthesis.getVoices();
+    const preferred = voices.find(v => v.lang === 'en-US' && (v.name.includes('Google') || v.name.includes('Natural')));
+    if (preferred) utterance.voice = preferred;
+
+    utterance.onstart = () => { isSpeaking = true; console.log('[VOICE] Speaking:', text); };
+    utterance.onend = () => { isSpeaking = false; };
+    utterance.onerror = (e) => { isSpeaking = false; console.error('[VOICE] Speech error:', e); };
+
+    window.speechSynthesis.speak(utterance);
+}
+
+/**
+ * Query local Ollama AI for a compassionate alert message and speak it
+ */
+async function fetchAndSpeakAI(alertType) {
+    const now = Date.now();
+    if (!CONFIG.AI_VOICE_ENABLED) return;
+    if (now - lastAiVoiceTime < CONFIG.AI_VOICE_COOLDOWN_MS) {
+        console.log('[VOICE] AI voice cooldown active, skipping...');
+        return;
+    }
+    lastAiVoiceTime = now;
+
+    // Immediately speak a quick fallback while waiting for the AI
+    const quickAlerts = {
+        'DROWSINESS': `${CONFIG.DRIVER_NAME}, wake up! You are falling asleep.`,
+        'YAWNING': `${CONFIG.DRIVER_NAME}, you look exhausted. Please take a break.`
+    };
+    speakMessage(quickAlerts[alertType] || 'Please pull over and rest.');
+
+    // Then query the AI for a richer message (async)
+    try {
+        console.log('[AI] Fetching personalised alert from local AI...');
+        const response = await fetch('http://localhost:3000/api/ai/chat', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                alertType: alertType,
+                driverName: CONFIG.DRIVER_NAME
+            })
+        });
+
+        if (!response.ok) throw new Error(`Server responded with ${response.status}`);
+
+        const data = await response.json();
+        if (data.success && data.message) {
+            const source = data.fallback ? 'fallback' : 'AI';
+            console.log(`[AI] Received ${source} message: "${data.message}"`);
+            // Speak the AI message with a small delay to not overlap with quick alert
+            setTimeout(() => speakMessage(data.message), 4000);
+        }
+    } catch (err) {
+        console.warn('[AI] Could not reach local AI server. Using quick alert only.', err.message);
+    }
+}
+
+/**
  * Update status display
  */
 function updateStatus(status, type = 'normal') {
@@ -406,12 +486,18 @@ function triggerAlarm(message = 'DROWSINESS DETECTED!') {
         alertOverlay.classList.add('active');
         updateStatus(message, 'alert');
 
-        // Play alarm sound if instant alerts are enabled
+        // Determine alert type for AI
+        const alertType = message.includes('YAWN') ? 'YAWNING' : 'DROWSINESS';
+
+        // 1. Speak AI-powered conversational alert
+        fetchAndSpeakAI(alertType);
+
+        // 2. Play alarm sound if instant alerts are enabled
         if (instantAlertsToggle && instantAlertsToggle.checked) {
             startAlarmSound();
         }
 
-        // Send SMS & WhatsApp if notifications are enabled
+        // 3. Send SMS & WhatsApp if notifications are enabled
         if (smsToggle && smsToggle.checked) {
             console.log('[TRIGGER] Notifying emergency contacts...');
             sendSmsAlert(message);
